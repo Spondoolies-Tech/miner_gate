@@ -1,0 +1,5 @@
+arm-none-linux-gnueabi-g++ -g -O0 -fpermissive -rdynamic zabbix_reader_human.cpp  -o zabbix_reader_arm -lpthread -static-libstdc++ -static-libgcc -I./
+
+g++ zabbix_reader.cpp -o zabbix_reader_human
+g++ zabbix_reader_human.cpp -o zabbix_reader
+g++ zabbix_fakewriter.cpp -o zabbix_fakewriter

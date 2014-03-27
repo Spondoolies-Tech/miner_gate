@@ -1,0 +1,1 @@
+../miner_gate/nvm.h

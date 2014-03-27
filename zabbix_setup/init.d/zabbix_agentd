@@ -1,0 +1,61 @@
+### BEGIN INIT INFO
+# Provides:          zabbix_agentd
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+# Required-Start:    
+# Required-Stop:     
+# Short-Description: Start zabix agentd daemon at boot time
+# Description:       Start zabbix agentd
+### END INIT INFO
+
+stop(){
+ echo "Stoping Zabbix agent...."
+ pid
+ if [ -z "$pid" ]; then 
+   echo "Zabbix agent seems to not be running."
+ else
+  kill $pid
+ fi
+}
+
+start(){
+ echo "Starting Zabbix agent...."
+ pid
+ if [ -z "$pid" ]; then
+  # centos (spdt-dmz) wants a full path, even though this is in the PATH, I do not know why
+  /usr/local/sbin/zabbix_agentd 
+  pid 
+  echo "pid: "$pid
+ else
+  echo "Zabbix agent already running, pid "$pid
+ fi
+}
+
+pid(){
+ pid=` ps aux | grep zabbix_agentd$ | awk '{print $2}'`
+}
+
+case "$1" in
+  start|"")
+	start
+	;;
+  restart|reload|force-reload)
+	stop
+	sleep 5
+	start
+	;;
+  stop)
+	stop
+	;;
+  status)
+	pid
+	echo $pid
+	exit $?
+	;;
+  *)
+	echo "Usage: zabbix_agentd [start|stop|restart]" >&2
+	exit 3
+	;;
+esac
+
+:

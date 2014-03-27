@@ -1,0 +1,54 @@
+\title{Notes on setting up the monitoring environment}
+\section{Considerations}
+\subsection{Purpose}
+The monitoring of the miner farm must take into consideration the uses of said monitoring, which at the moment are not well defined. We can split the monitoring needs into the following basic categories:
+\begin{enumerate}
+	\item{Immediate Issues, such as a miner going down unexpectedly.}
+	\item{Global Abberations, where a miner is acting noticeably different than the others}
+	\item{Historical Abberations, where a miner acts erratically, or suddenly chanegs from its previous patterns}
+	\item{Historical data, for analysis. This is the least urgent.}
+	\item{Observing trends, so we have a good sense that things are flowing as expected.}
+\end{enumerate}
+
+We  do not assume that any particualr monitoring solution will serve each of these purposes equally well, and we will use multiple solutions if necessary.
+
+\subsection{Constraints}
+The primary (at this time, the only) constraint we are concerned with is the resources needed for monitoring.
+At this point we have determined that a full log with Zabbix is prohibitive, though it is feasible using extra Vcpu, or multiple machines. The main weight is on the MySQL server, not the Zabbix server, so using proxies will not help.
+
+\subsection{Demand}
+Some of our monitoring needs to be done in real-time, but much of it only needs to be generated on demand. 
+Generally, we will expect that global data and availability checks need to done in real time, while for machine-specific metrics there is no need for active monitoring, though the data needs to be available on demand. This gives us an important distinction between \textem{logging} and \textem{monitoring}, parralleling a distinction between {\textem Live} and {\textem On-demand} data.
+
+\subsection{Tools}
+The main tool we planned on using is Zabbix, but it will not serve all our purposes. Specifically, it is resource-intensive for logging, it cannot generate graphs on-demand, and its graphing capabilities are limited to graphing data items stored in its database. 
+We can consider the following other classes of toosl:
+\begin{enumerate}
+	\item{Log Files} There can be either binary or text, and would be used for generating on-demand reports.
+	\item{Graphing Libraries} We can use a seperate library for graphing/reports, and do not need a tool which combines this with logging or monitoring. 
+	\item{Databases} We can enter data directly to a database, independent of what tool might be used for reading it. 
+\end{enumerate}
+I assume that Zabbix has maximized the efficiency of database logging, and if Zabbix is too heavy, then it is unlikely that our own inserts will show any significant improvement.
+
+
+\section{Approaches}
+\subsection{Zabbix}
+Zabbix is an all-included tool, though it has limitations both in scalability and reporting capabilities. 
+It seems that we will not be able to use only Zabbix, but we will probably want to use Zabbix together with other tools.
+Zabbix is well-suited for detecting issues which require immediate attention (that is its main design objective). 
+I assume it is also optimized for database logging, despite scaling issues we encountered.
+We can use Zabbix for both Immediate and Live monitoring, while leaving Historical and On-Demand needs to other approaches.
+Zabbix requires full definitions of templates, but can auto-discover hosts, mso we can expect that new miners will not have to be manually added. We would however have to verify that Zabbix is monitoring every active miner.
+We can use Zabbix to monitor only miner-level data, with some way to link it to tools to view historical data, or details for particular miners. This will greatly reduce th eoverhead of the zabbix database logging.
+
+\subsection{Central Miner Log}
+We will keep a seperate text-file directory of all active miners. A sinlg eprocess will modify this file, and will accept notifications (probably by creating other text files) of status changes.
+The miners will notify the process when they come up, and for any planned status change.
+Zvisha, or any other maintainer, can also notify the process of miners being added or removed, or other status changes.
+Anyone adding a new miner will be expected to also notify this process, so that we can verify that the miner is known, active, and also registered anywhere else it needds to be known (i.e. Zabbix).
+This file will be our primary tool for automated administration of miners.
+At the moment, the only planned administration that it wil be used for is keeping track of groups of miners, where each group will have a seperate config file, and making sure that each miner loads the correct configuration.
+We have not discussed where groups will be defined, presumably they will be defined based on file names of config files.
+
+
+\section{Implementation}
