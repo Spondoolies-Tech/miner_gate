@@ -177,12 +177,12 @@ static void dc2dc_select_i2c(int loop, int *err) { // 1 or 0
 }
 
 
-void dc2dc_set_vtrim(int loop, uint32_t vtrim, int *err) {
+void dc2dc_set_vtrim(int loop, uint32_t vtrim, bool vmargin_75low  , int *err) {
 
   passert(vtrim >= VTRIM_MIN && vtrim <= vm.vtrim_max);
 
 #ifndef __MBTEST__
-	  printf("Set VOLTAGE Loop %d Milli:%d Vtrim:%x\n",loop, VTRIM_TO_VOLTAGE_MILLI(vtrim),vtrim);
+	  printf("Set VOLTAGE Loop %d Milli:%d Vtrim:%x\n",loop, VTRIM_TO_VOLTAGE_MILLI(vtrim, vm.vmargin_start),vtrim);
 #endif
 
   pthread_mutex_lock(&i2c_mutex);
@@ -190,9 +190,14 @@ void dc2dc_set_vtrim(int loop, uint32_t vtrim, int *err) {
   // printf("%d\n",v);
   // int err = 0;
   dc2dc_select_i2c(loop, err);
-//  passert((v < ASIC_VOLTAGE_COUNT) && (v >= 0));
+
   i2c_write_word(I2C_DC2DC, 0xd4, vtrim&0xFFFF);
-  i2c_write_byte(I2C_DC2DC, 0x01, 0);
+
+  if (vmargin_75low) {
+    i2c_write_byte(I2C_DC2DC, 0x01, 0x14);
+  } else {
+    i2c_write_byte(I2C_DC2DC, 0x01, 0x0);
+  }
 
   // disengage from scale manager if not needed
 #ifdef MINERGATE
@@ -281,7 +286,7 @@ int update_dc2dc_current_temp_measurments(int loop, int* overcurrent, int* overc
            vm.loop[i].dc2dc.dc_current_16s_arr[3]) >> 2;*/
           
         vm.loop[i].dc2dc.dc_power_watts_16s = 
-        vm.loop[i].dc2dc.dc_current_16s*VTRIM_TO_VOLTAGE_MILLI(vm.loop_vtrim[i])/1000;
+        vm.loop[i].dc2dc.dc_current_16s*VTRIM_TO_VOLTAGE_MILLI(vm.loop_vtrim[i], vm.loop_margin_low[i])/1000;
     } else {
       // This will disable ac2dc scaling
       vm.loop[i].dc2dc.dc_current_16s = 0;
@@ -300,7 +305,7 @@ int dc2dc_get_voltage(int loop, int *err) {
   int voltage;
   //printf("%s:%d\n",__FILE__, __LINE__);
   
-   pthread_mutex_lock(&i2c_mutex);
+  pthread_mutex_lock(&i2c_mutex);
   dc2dc_select_i2c(loop, err);
   voltage = i2c_read_word(I2C_DC2DC, 0x8b, err) * 1000 / 512;
   if (*err) {

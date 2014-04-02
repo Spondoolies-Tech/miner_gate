@@ -39,7 +39,7 @@
 #include <pthread.h>
 
 static int now;
-static int proccess_bist_results = 0;
+
 
 
 
@@ -131,8 +131,6 @@ void asic_up(HAMMER *a) {
 //   vm.loop[a->loop_address].dc2dc.dc_current_16s_arr[2] += 4;
 //   vm.loop[a->loop_address].dc2dc.dc_current_16s_arr[3] += 4;
    vm.ac2dc_power++;
-   vm.pll_changed=1;
-
 }
 
 
@@ -157,7 +155,6 @@ void asic_down_completly(HAMMER *a) {
    vm.loop[a->loop_address].dc2dc.dc_current_16s_arr[2] -= fdiff;
 */
 
-   vm.pll_changed=1;
    
 }
 
@@ -180,7 +177,6 @@ void asic_up_fast(HAMMER *a) {
    
    //set_pll(a->address, wanted_freq);        
    a->last_freq_change_time = now;    
-   vm.pll_changed=1;
 }
 
 
@@ -193,14 +189,13 @@ void asic_down(HAMMER *a, int down) {
     //set_pll(a->address, wanted_freq);        
    a->last_freq_change_time = now;      
    
-   vm.loop[a->loop_address].dc2dc.dc_current_16s -= 3;
+   vm.loop[a->loop_address].dc2dc.dc_current_16s -= 3*down;
    /*
    vm.loop[a->loop_address].dc2dc.dc_current_16s_arr[0] -= 3;
    vm.loop[a->loop_address].dc2dc.dc_current_16s_arr[1] -= 3;
    vm.loop[a->loop_address].dc2dc.dc_current_16s_arr[2] -= 3;
    vm.loop[a->loop_address].dc2dc.dc_current_16s_arr[3] -= 3;
   */
-   vm.pll_changed=1;
 }
 
 
@@ -277,11 +272,13 @@ void resume_asics_if_needed() {
 void do_bist_fix_loops_rt() {
   static int counter = 0;  
   counter++; 
-
+  int failed;
   
-  if (!vm.asics_shut_down_powersave && !vm.thermal_test_mode) { 
+  if (!vm.asics_shut_down_powersave && vm.last_bist_state_machine != BIST_SM_CHANGE_FREQ2) { 
       int uptime = time(NULL) - vm.start_mine_time;
-      if (((counter % BIST_PERIOD_SECS) == 0) ||
+      if (
+          ((counter % BIST_PERIOD_SECS) == 0) ||
+           (vm.last_bist_state_machine == BIST_SM_DO_BIST_AGAIN) ||
            (
              (uptime < AGRESSIVE_BIST_PERIOD_UPTIME_SECS) &&
              ((counter % AGRESSIVE_BIST_PERIOD_SECS) == 0)
@@ -291,16 +288,18 @@ void do_bist_fix_loops_rt() {
 
          struct timeval tv; 
          start_stopper(&tv);
-         int failed = do_bist_ok_rt(1);      
+         if ((failed = do_bist_ok_rt(1))) {
+            vm.last_bist_state_machine = BIST_SM_DO_SCALING;
+         } else {
+            vm.last_bist_state_machine = BIST_SM_NADA;
+         }
          end_stopper(&tv,"BIST");
          psyslog( "Bist failed %d times\n" , failed);
-         if (failed) {
-           proccess_bist_results = 1;
-         }
       }
   }
 }
 
+void loop_down(int l);
 
 
 // Runs from non RT thread once a second
@@ -318,8 +317,12 @@ void maybe_change_freqs_nrt() {
      }
 
      
-     if (vm.loop[l].dc2dc.dc_current_16s >= vm.loop[l].dc2dc.dc_current_limit_16s) {
-       critical_downscale=1;
+     if (vm.loop[l].dc2dc.dc_current_16s > vm.loop[l].dc2dc.dc_current_limit_16s) {
+       if (vm.loop_vtrim[l] > VTRIM_MIN) {       
+           vm.loop[l].dc2dc.max_vtrim_currentwise = vm.loop_vtrim[l]-1;
+       }
+       //loop_down(l);
+		critical_downscale = 1;
        printf("Current critical %d!\n", l);
      }
   
@@ -333,7 +336,6 @@ void maybe_change_freqs_nrt() {
        for (int i = 0 ; i < HAMMERS_PER_LOOP ; i++) {
          HAMMER* h = &vm.hammer[l*HAMMERS_PER_LOOP+i];
          if (h->asic_present) {
-          
            if (h->asic_temp >= MAX_ASIC_TEMPERATURE && 
                h->freq_wanted > MINIMAL_ASIC_FREQ &&
                (now - h->last_down_freq_change_time) > 20) {
@@ -360,13 +362,14 @@ void maybe_change_freqs_nrt() {
    counter++;
    // Run every XX seconds
    if (((counter%15) == 0) ||
-       proccess_bist_results ||
-       critical_downscale ||
+       (vm.last_bist_state_machine == 1) ||
+       critical_downscale  ||
        (vm.ac2dc_power > vm.max_ac2dc_power)) {
            printf(MAGENTA "Running FREQ update\n" RESET);
            //!!!  HERE WE DO FREQUENCY UPDATES!!!
            asic_frequency_update_nrt();
-           proccess_bist_results = 0;
+           // Signal that we wait for ASICs to set freq
+           vm.last_bist_state_machine = 2;
            // Dont run for next 7 seconds.
        }
 }
@@ -374,7 +377,7 @@ void maybe_change_freqs_nrt() {
 
 
 int loop_can_down(int l);
-int loop_down(int l);
+void loop_down(int l);
 
 
 // Runs from LOW priority thread.
@@ -414,7 +417,7 @@ void asic_frequency_update_nrt(int verbal) {
         // This must be first!! We must have real data here.
         int passed = h->passed_last_bist_engines;        
         if ((passed != ALL_ENGINES_BITMASK)) {
-          vm.loop[h->loop_address].asics_failing_bist=1;
+          vm.loop[h->loop_address].asics_failing_bist = 1;
           int failed_engines_mask = passed ^ ALL_ENGINES_BITMASK;
           cnt++;
           // It's not only thermaly punished, it's failing bist
@@ -423,17 +426,23 @@ void asic_frequency_update_nrt(int verbal) {
           //passert(h);
           if (asic_can_down(h)) {
             if (h->freq_wanted == h->freq_hw) {
-              h->freq_thermal_limit = (ASIC_FREQ)(h->freq_wanted-1);
-              h->freq_bist_limit = (ASIC_FREQ)(h->freq_wanted-1);
-              asic_down(h); 
-              //printf("Down with ASIC  %x %x:%x\n",h->address,h->freq_hw,h->freq_wanted);            
-              changed++;
-            } else {
-              // remind thread!
-              vm.pll_changed = 1;
+              if (h->freq_thermal_limit >= MINIMAL_ASIC_FREQ + 1) {
+                h->freq_thermal_limit = (ASIC_FREQ)(h->freq_wanted-1);
+                h->freq_bist_limit = (ASIC_FREQ)(h->freq_wanted-1);
+                asic_down(h,1); 
+                //printf("Down with ASIC  %x %x:%x\n",h->address,h->freq_hw,h->freq_wanted);            
+                changed++;
+              }
             }
           } else {
-            printf("Cant down ASIC %x %x:%x",h->address,h->freq_hw,h->freq_wanted);
+            printf("Cant down ASIC %d: %x:%x",h->address,h->freq_hw,h->freq_wanted);
+            if (h->freq_wanted == h->freq_hw == h->freq_bist_limit == MINIMAL_ASIC_FREQ) {
+              h->working_engines &= passed;
+              h->freq_bist_limit = MAX_ASIC_FREQ;
+              h->freq_thermal_limit= MAX_ASIC_FREQ;
+              h->freq_wanted = (ASIC_FREQ)(MINIMAL_ASIC_FREQ+1);
+              h->agressivly_scale_up = 1;
+            }
           }
      
            h->passed_last_bist_engines = ALL_ENGINES_BITMASK;
@@ -441,7 +450,7 @@ void asic_frequency_update_nrt(int verbal) {
 
 
         if (h->asic_temp >= MAX_ASIC_TEMPERATURE ) {
-          if(h->freq_wanted > ASIC_FREQ_225) {
+          if(h->freq_wanted > MINIMAL_ASIC_FREQ) {
              // let it cool off
              //printf("TOO HOT:%x\n",h->address);
              h->freq_thermal_limit = (ASIC_FREQ)(h->freq_thermal_limit - 1);

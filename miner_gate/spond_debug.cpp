@@ -19,9 +19,12 @@
 #include <syslog.h>
 #include <spond_debug.h>
 
+
+
+
 #define SIZE 100
 #ifdef MINERGATE
-void exit_nicely();
+void exit_nicely(int seconds_sleep_before_exit);
 #endif
 
 void print_stack() {
@@ -47,7 +50,7 @@ void _pabort(const char *s) {
 	 }
   print_stack();
 #ifdef MINERGATE  
-  exit_nicely();
+  exit_nicely(0);
 #else
   exit(0);
 #endif

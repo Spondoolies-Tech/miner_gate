@@ -88,7 +88,10 @@ public:
 minergate_adapter *adapters[0x100] = { 0 };
 int kill_app = 0;
 
-void exit_nicely() {
+
+extern void save_rate_temp(int back_tmp, int front_tmp, int total_mhash);
+
+void exit_nicely(int seconds_sleep_before_exit) {
   int err;
   kill_app = 1;
   // Let other threads finish. 
@@ -100,36 +103,53 @@ void exit_nicely() {
     dc2dc_disable_dc2dc(l, &err); 
   }
   set_fan_level(0);
+  save_rate_temp(0,0,0);
   psyslog("Here comes unexpected death!\n");
+  usleep(seconds_sleep_before_exit*1000*1000);
   exit(0);  
 }
 
-int read_work_mode() {
+int read_work_mode(int input_voltage) {
 	FILE* file = fopen ("/etc/mg_work_mode", "r");
+  vm.max_ac2dc_power = AC2DC_POWER_LIMIT;
+  if (input_voltage < 130) {
+    psyslog("input_voltage < 130, limit power to 1100\n");
+    vm.max_ac2dc_power = 1100;
+  }
+  
 	int i = 0;
 	if (file <= 0) {
 		vm.work_mode = 2;
 	} else {
   	fscanf (file, "%d", &vm.work_mode);	  
-    if (vm.work_mode < 0 || vm.work_mode > 2) {
+    if (vm.work_mode < 0 || vm.work_mode > 3) {
       vm.work_mode = 2;
     }
     fclose (file);
 	}
 
-  if (vm.work_mode == 0) {
+
+  if (vm.work_mode == 3) { // Super ECON
+    vm.vmargin_start = true;  
+    vm.max_fan_level = FAN_QUIET;
+    vm.vtrim_start = VTRIM_START_ECON;
+    vm.vtrim_max = VTRIM_START_ECON;
+  } else if (vm.work_mode == 0 || (input_voltage < 110)) {  // ECON
+    vm.vmargin_start = false;
     vm.max_fan_level = FAN_QUIET;
     vm.vtrim_start = VTRIM_START_QUIET;
     vm.vtrim_max = VTRIM_MAX_QUIET;
-  } else if (vm.work_mode == 1) {
+  } else if (vm.work_mode == 1) { // NORMAL
+    vm.vmargin_start = false;
     vm.max_fan_level = FAN_NORMAL;
     vm.vtrim_start = VTRIM_START_NORMAL;
     vm.vtrim_max = VTRIM_MAX_NORMAL;
-  } else if (vm.work_mode == 2) {
+  } else if (vm.work_mode == 2) { // TURBO
+    vm.vmargin_start = false;  
     vm.max_fan_level = FAN_TURBO;
     vm.vtrim_start = VTRIM_START_TURBO;
     vm.vtrim_max = VTRIM_MAX_TURBO;
-  }
+  } 
 
 
   file = fopen ("/etc/mg_fan_speed_override", "r");
@@ -156,8 +176,7 @@ int read_work_mode() {
     fclose (file);
   } 
 
-
-   vm.max_ac2dc_power = AC2DC_POWER_LIMIT;
+/*   
    file = fopen ("/etc/mg_psu_limit", "r");
    if (file > 0) {
     int limit;
@@ -167,6 +186,7 @@ int read_work_mode() {
     }
     fclose (file);
   } 
+*/
 
   printf("WORK MODE = %d\n", vm.work_mode);
 	
@@ -249,7 +269,7 @@ int pull_work_req_adapter(RT_JOB *w, minergate_adapter *adapter) {
     w->work_state = 0;
     w->leading_zeroes = r.leading_zeroes;
     w->ntime_max = r.ntime_limit;
-    w->ntime_offset = 0;
+    w->ntime_offset = r.ntime_offset;
     //printf("Roll limit:%d\n",r.ntime_limit);
     return 1;
   }
@@ -286,12 +306,11 @@ int has_work_req() {
 
 void push_work_req(minergate_do_job_req *req, minergate_adapter *adapter) {
   pthread_mutex_lock(&network_hw_mutex);
-
   if (adapter->work_minergate_req.size() >= (MINERGATE_TOTAL_QUEUE - 10)) {
     minergate_do_job_rsp rsp;
     rsp.mrkle_root = req->mrkle_root;
     rsp.winner_nonce = 0;
-    rsp.ntime_offset = 0;
+    rsp.ntime_offset = req->ntime_offset;    
     rsp.work_id_in_sw = req->work_id_in_sw;
     rsp.res = 1;
     // printf("returning %d %d\n",req->work_id_in_sw,rsp.work_id_in_sw);
@@ -357,7 +376,6 @@ void *connection_handler_thread(void *adptr) {
 
       usec = (now.tv_sec - last_time.tv_sec) * 1000000;
       usec += (now.tv_usec - last_time.tv_usec);
-  
 
       pthread_mutex_lock(&hammer_mutex);     
       pthread_mutex_lock(&network_hw_mutex);
@@ -572,22 +590,9 @@ int main(int argc, char *argv[]) {
 
   if ((argc > 1) && strcmp(argv[1], "--help") == 0) {
     printf("--testreset = Test asic reset!!!\n");
-    printf("--silent-test = Work with 10 ASICs!!!\n");
-    printf("--thermal-test = Only test thermal!!!\n");    
     return 0;
   }
 
-
-  if ((argc > 1) && strcmp(argv[1], "--silent-test") == 0) {
-    vm.silent_mode = 1;
-    printf("Test mode, using few ASICs !!!\n");
-  }
-
- 
-  if ((argc > 1) && strcmp(argv[1], "--thermal-test") == 0) {
-    vm.thermal_test_mode = 1;
-    printf("Test mode, using few ASICs !!!\n");
-  }
 
   if ((argc > 1) && strcmp(argv[1], "--testreset") == 0) {
     testreset_mode = 1;
@@ -600,10 +605,15 @@ int main(int argc, char *argv[]) {
   socklen_t address_length = sizeof(address);
   pthread_t main_thread;
   pthread_t dc2dc_thread;
+  int input_voltage;
   // pthread_t conn_pth;
   pid_t child;
+  psyslog("i2c_init\n");
+  i2c_init();
+  psyslog("ac2dc_init\n");
+  ac2dc_init(&input_voltage);
   psyslog("Read work mode\n");
-  read_work_mode();
+  read_work_mode(input_voltage);
   // Must be done after "read_work_mode"
   psyslog("Read  NVM\n");
   load_nvm_ok();
@@ -611,12 +621,11 @@ int main(int argc, char *argv[]) {
   reset_squid();
   psyslog("init_spi\n");
   init_spi();
-  psyslog("i2c_init\n");
-  i2c_init();
+
   psyslog("dc2dc_init\n");
   dc2dc_init();
-  psyslog("ac2dc_init\n");
-  ac2dc_init();
+ 
+  
   psyslog("init_pwm\n");
   init_pwm();
   psyslog("set_fan_level\n");

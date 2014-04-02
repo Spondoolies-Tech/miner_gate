@@ -39,10 +39,11 @@ typedef enum {
 } DC2DC_VOLTAGE;
 
 #define VTRIM_MIN 0x0FFc5  // 0.635
+
 //#define VTRIM_MEDIUM 0x0ffdd //
 //#define VTRIM_MAX 0x10008  // 0.810
 
-#define VTRIM_TO_VOLTAGE_MILLI(XX)    ((63500 + (XX-0x0FFc5)*(266))/100)  
+#define VTRIM_TO_VOLTAGE_MILLI(XX, VMARG)    ((63500 + (XX-0x0FFc5)*(266))/100 - ((VMARG)?75:0))  
 //#define VOLTAGE_TO_VTRIM_MILLI(XX)    ((63500 + (XX-0x0FFc5)*(266))/100)  
 
 /*
@@ -67,7 +68,7 @@ int update_dc2dc_current_temp_measurments(int loop, int* overcurrent_err,  int* 
 // in takes 0.2second for voltage to be stable.
 // Remember to wait after you exit this function
 //void dc2dc_set_voltage(int loop, DC2DC_VOLTAGE v, int *err);
-void dc2dc_set_vtrim(int loop, uint32_t vtrim, int *err);
+void dc2dc_set_vtrim(int loop, uint32_t vtrim, bool vmargin_75low, int *err);
 
 
 // Returns value like 810, 765 etc`

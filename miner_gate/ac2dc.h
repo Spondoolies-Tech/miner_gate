@@ -25,7 +25,7 @@ typedef struct {
 
 int ac2dc_get_vpd(ac2dc_vpd_info_t *pVpd);
 int update_ac2dc_power_measurments();
-void ac2dc_init();
+void ac2dc_init(int *input_voltage);
 
 
 #endif

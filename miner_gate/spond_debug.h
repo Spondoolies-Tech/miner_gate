@@ -17,10 +17,10 @@
 #include <sys/time.h>
 
 #define DBG_NET 0
-#define DBG_WINS 0
+#define DBG_WINS 1
 #define DBG_HW 1
 #define DBG_SCALING 0
-#define DBG_HASH 1
+#define DBG_HASH 0
 
 #define RED "\x1b[31m"
 #define GREEN "\x1b[32m"

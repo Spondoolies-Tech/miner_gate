@@ -13,6 +13,7 @@
 #define MINER_GATE_H
 #include "defines.h"
 int pull_work_req(RT_JOB *w);
+void exit_nicely(int seconds_sleep_before_exit = 0);
 
 
 #endif

@@ -23,7 +23,7 @@
 #include <netinet/in.h>
 
 
-#define MINERGATE_PROTOCOL_VERSION 3
+#define MINERGATE_PROTOCOL_VERSION 4
 #define MINERGATE_SOCKET_FILE "/tmp/connection_pipe"
 
 typedef enum {
@@ -42,13 +42,13 @@ typedef struct {
   uint32_t midstate[8];
   uint8_t leading_zeroes;
   uint8_t ntime_limit; // max ntime
-  uint8_t res2;
-  uint8_t res3;
+  uint8_t ntime_offset;
+  uint8_t resr1;
 } minergate_do_job_req;
 
-#define MAX_REQUESTS 200
-#define MAX_RESPONDS 400
-#define MINERGATE_TOTAL_QUEUE 600
+#define MAX_REQUESTS 100
+#define MAX_RESPONDS 300
+#define MINERGATE_TOTAL_QUEUE 300
 
 typedef struct {
   uint32_t work_id_in_sw;
@@ -56,6 +56,8 @@ typedef struct {
   uint32_t winner_nonce;  
   uint8_t  ntime_offset;
   uint8_t res; // 0 = done, 1 = overflow, 2 = dropped bist
+  uint8_t resrv1; 
+  uint8_t resrv2; 
 } minergate_do_job_rsp;
 
 typedef struct {

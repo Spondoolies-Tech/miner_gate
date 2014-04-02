@@ -18,6 +18,7 @@
 #include "hammer.h"
 #include "defines.h"
 
+void good_loops_fast_test();
 void discover_good_loops();
 void compute_corners();
 void enable_voltage_freq(ASIC_FREQ f);

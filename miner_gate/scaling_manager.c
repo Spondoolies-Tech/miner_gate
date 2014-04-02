@@ -203,7 +203,7 @@ void print_scaling() {
   int total_watt=0;
   fprintf(f,GREEN  "L |Vtrm/max  |vlt|Wt|"  "Am|DCt|"  "crt|Gh|Ov" ); 
   for (int i = 0; i < HAMMERS_PER_LOOP/2; i++) {
-    fprintf(f, "|ID|aTMP|Freq |Th|Bt|Engn|Wn ");
+    fprintf(f, "|ID |aTMP|Freq |Th|Bt|Engn|Wn ");
   }
   for (int addr = 0; addr < HAMMERS_COUNT ; addr++) {  
     hammer_iter hi;    
@@ -226,7 +226,7 @@ void print_scaling() {
           hi.l, 
           vm.loop_vtrim[hi.l]&0xffff,
           vm.loop[hi.l].dc2dc.max_vtrim_currentwise&0xffff,
-          VTRIM_TO_VOLTAGE_MILLI(vm.loop_vtrim[hi.l]),
+          VTRIM_TO_VOLTAGE_MILLI(vm.loop_vtrim[hi.l],vm.loop_margin_low[hi.l]),
           dc2dc->dc_power_watts_16s/16,
           
         ((dc2dc->dc_current_16s>=DC2DC_INITIAL_CURRENT_16S - 1*16)?RED:GREEN), dc2dc->dc_current_16s/16,GREEN,
@@ -252,7 +252,7 @@ void print_scaling() {
 
     total_asics++;
 
-    fprintf(f, GREEN RESET "|%2x:%s%3dc%s %s%3dhz%s(%2d/%2d)%s %x" GREEN RESET "%3d", 
+    fprintf(f, GREEN RESET "|%3d:%s%3dc%s %s%3dhz%s(%2d/%2d)%s %x" GREEN RESET "%3d", 
       hi.addr,
       (hi.a->asic_temp>=MAX_ASIC_TEMPERATURE-1)?((hi.a->asic_temp>=MAX_ASIC_TEMPERATURE)?RED:YELLOW):GREEN,((hi.a->asic_temp*6)+77),GREEN,
        ((hi.a->freq_wanted>=ASIC_FREQ_540)? (MAGENTA) : ((hi.a->freq_wanted<=ASIC_FREQ_510)?(CYAN):(YELLOW))), hi.a->freq_wanted*15+210,GREEN,
@@ -278,7 +278,7 @@ void print_scaling() {
    fprintf(f, "Pushed %d jobs , in queue %d jobs!\n",
              vm.last_second_jobs, rt_queue_size);
    vm.last_second_jobs = 0;
-    fprintf(f, "wins:%d, leading-zeroes:%d idle:%d/%d :)\n", vm.solved_jobs_total,
+    fprintf(f, "wins:%d[fp:%d], leading-zeroes:%d idle:%d/%d :)\n", vm.solved_jobs_total, vm.false_positives_total,
            vm.cur_leading_zeroes, vm.idle_probs, vm.busy_probs);
     print_adapter(f);
   fclose(f);

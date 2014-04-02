@@ -39,8 +39,8 @@
 
 // In seconds
 #define BIST_PERIOD_SECS                              30 
-#define AGRESSIVE_BIST_PERIOD_SECS                    15
-#define AGRESSIVE_BIST_PERIOD_UPTIME_SECS         (60*20)
+#define AGRESSIVE_BIST_PERIOD_SECS                    10
+#define AGRESSIVE_BIST_PERIOD_UPTIME_SECS         (60*30)
 
 
 #define TRY_ASIC_FREQ_INCREASE_PERIOD_SECS 2
@@ -75,15 +75,22 @@
 #define VTRIM_674   0xFFD4
 #define VTRIM_671   0xFFD3
 #define VTRIM_669   0xFFD2
+#define VTRIM_810   0x10008
+#define VTRIM_810   0x10008
 
-#define VTRIM_810   0x10008
-#define VTRIM_810   0x10008
+#define VTRIM_ML_630   0xFFE1
+#define VTRIM_ML_600   0xFFD4
+#define VTRIM_ML_585   0xFFCF
+#define VTRIM_ML_555   0xFFC4
+
+
 
 #define VTRIM_HIGH  0x0FFef
 
-#define VTRIM_START_TURBO (VTRIM_664) //0x0FFd0//VTRIM_MIN//(0x0FFd0+10)//VTRIM_MIN //(0x0FFd2-7)//(0x0FFd2-0xf)
-#define VTRIM_START_NORMAL (VTRIM_664) //0x0FFd0//VTRIM_MIN//(0x0FFd0+10)//VTRIM_MIN //(0x0FFd2-7)//(0x0FFd2-0xf)
+#define VTRIM_START_TURBO (VTRIM_669) //0x0FFd0//VTRIM_MIN//(0x0FFd0+10)//VTRIM_MIN //(0x0FFd2-7)//(0x0FFd2-0xf)
+#define VTRIM_START_NORMAL (VTRIM_669) //0x0FFd0//VTRIM_MIN//(0x0FFd0+10)//VTRIM_MIN //(0x0FFd2-7)//(0x0FFd2-0xf)
 #define VTRIM_START_QUIET (VTRIM_MIN) //0x0FFd0//VTRIM_MIN//(0x0FFd0+10)//VTRIM_MIN //(0x0FFd2-7)//(0x0FFd2-0xf)
+#define VTRIM_START_ECON (VTRIM_ML_600)
 
 
 #define VTRIM_MAX_TURBO (VTRIM_810) //0x0FFd0//VTRIM_MIN//(0x0FFd0+10)//VTRIM_MIN //(0x0FFd2-7)//(0x0FFd2-0xf)
@@ -95,6 +102,8 @@
 #define FAN_NORMAL 80
 #define FAN_QUIET 50
 
+
+#define MAX_LEADING_ZEROES 40
 
 //#define CORNER_DISCOVERY_FREQ_SS       ASIC_FREQ_480 // all less
 

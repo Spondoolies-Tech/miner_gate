@@ -25,6 +25,7 @@
 #include <syslog.h>
 #include <spond_debug.h>
 #include "hammer_lib.h"
+#include "corner_discovery.h"
 
 #define ARRAY_SIZE(a) (sizeof(a) / sizeof((a)[0]))
 #define BROADCAST_ADDR 0xffff
@@ -367,8 +368,12 @@ uint32_t _read_reg_actual(uint32_t address, uint32_t offset) {
     // TODO  - handle timeout?
     if (assert_serial_failures) {
       printf("FAILED TO READ 0x%x 0x%x\n", address, offset);
+#ifdef MINERGATE	  
+	  good_loops_fast_test();
+#endif
 #ifdef DC2DC_CHECK_ON_ERROR
 //	  check_for_dc2dc_errors();
+	  
 #endif
       return 0;
     } else {
@@ -388,7 +393,10 @@ uint32_t _read_reg_actual(uint32_t address, uint32_t offset) {
     if (assert_serial_failures) {
       printf("Data corruption: READ:0x%x 0x%x / GOT:0x%x 0x%x \n", address,
              offset, values[0], values[1]);
-      passert(0, "29578");
+#ifdef MINERGATE		  
+	   good_loops_fast_test();
+#endif
+      //passert(0, "29578");
     } else {
       printf("Data corruption: READ:0x%x 0x%x / GOT:0x%x 0x%x \n", address,
              offset, values[0], values[1]);

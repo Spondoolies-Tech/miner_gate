@@ -23,25 +23,29 @@ typedef struct {
   uint16_t p_div;
 } pll_frequency_settings;
 
+#if 1
 #define FREQ_225_0      { 30, 900, 2 }
-#define FREQ_232_5      { 31, 930, 2 }
 #define FREQ_240_0      { 32, 960, 2 }
-#define FREQ_247_5      { 33, 990, 2 }
 #define FREQ_255_0      { 34, 1020, 2 }
-#define FREQ_262_5      { 35, 1050, 2 }
 #define FREQ_270_0      { 36, 1080, 2 }
-#define FREQ_277_5      { 37, 1110, 2 }
 #define FREQ_285_0      { 38, 1140, 2 }
-#define FREQ_292_5      { 39, 1170, 2 }
 #define FREQ_300_0      { 40, 1200, 2 }
-#define FREQ_307_5      { 41, 1230, 2 }
 #define FREQ_315_0      { 42, 1260, 2 }
-#define FREQ_322_5      { 43, 1290, 2 }
 #define FREQ_330_0      { 44, 1320, 2 }
-#define FREQ_337_5      { 45, 1350, 2 }
 #define FREQ_345_0      { 46, 1380, 2 }
-#define FREQ_352_5      { 47, 1410, 2 }
 #define FREQ_360_0      { 48, 1440, 2 }
+#else
+#define FREQ_225_0      { 15, 450, 1 }
+#define FREQ_240_0      { 16, 480, 1 }
+#define FREQ_255_0      { 17, 510, 1 }
+#define FREQ_270_0      { 18, 540, 1 }
+#define FREQ_285_0      { 19, 570, 1 }
+#define FREQ_300_0      { 20, 600, 1 }
+#define FREQ_315_0      { 21, 630, 1 }
+#define FREQ_330_0      { 22, 660, 1 }
+#define FREQ_345_0      { 23, 690, 1 }
+#define FREQ_360_0      { 24, 720, 1 }
+#endif
 #define FREQ_375_0      { 25, 750, 1 }
 #define FREQ_390_0      { 26, 780, 1 }
 #define FREQ_405_0      { 27, 810, 1 }
@@ -93,10 +97,10 @@ typedef struct {
 void disable_engines_all_asics();
 void disable_engines_asic(int addr);
 void enable_engines_asic(int addr, int engines_mask);
-void set_pll(int addr, ASIC_FREQ freq);
+void set_pll(int addr, ASIC_FREQ freq, bool with_reset = true);
 int enable_good_engines_all_asics_ok();
 void disable_asic_forever_rt(int addr);
 void enable_all_engines_all_asics();
-void set_asic_freq(int addr, ASIC_FREQ new_freq);
+//void set_asic_freq(int addr, ASIC_FREQ new_freq);
 
 #endif

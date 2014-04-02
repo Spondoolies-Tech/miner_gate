@@ -153,14 +153,17 @@ int main(int argc, char* argv[])
    
    //printf("REQUESTS: %d RESPONCES: %d, DELTA: %d\n",requests, responces, requests - responces);
    usleep(jobs_period*1000);
+   static int last_time = 0;
+   int t = time(NULL);
    static int counter = 0;
    counter++;
    // Show rate each X seconds 
    if ((counter%((1000/jobs_period))) == 0) {
       global_rate+=rate;
       global_rate_cnt++;
-      printf(MAGENTA "HASH RATE=%dGH (TOTAL=%fGH)\n" RESET,rate*4,((4.0*(float)global_rate)/(float)global_rate_cnt));
+      printf(MAGENTA "HASH RATE=%4dGH (TOTAL=%fGH) %d\n" RESET,rate*4,((4.0*(float)global_rate)/(float)global_rate_cnt), t-last_time);
       rate=0;
+      last_time = t;
    }
  }
  close(socket_fd);

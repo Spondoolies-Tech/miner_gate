@@ -68,19 +68,22 @@ void disable_engines_asic(int addr) {
 
 void enable_engines_asic(int addr, int engines_mask) {
   //printf("Disabling engines:\n");
-  write_reg_device(addr,ADDR_CLK_ENABLE, engines_mask);  
-  write_reg_device(addr,ADDR_ENABLE_ENGINE, engines_mask);
-  write_reg_device(addr,ADDR_RESETING1, engines_mask | 0x8000);
+  write_reg_device(addr,ADDR_CLK_ENABLE, engines_mask);
   write_reg_device(addr,ADDR_RESETING0, engines_mask);
+  write_reg_device(addr,ADDR_RESETING1, engines_mask | 0x8000);  
+  write_reg_device(addr,ADDR_ENABLE_ENGINE, engines_mask);  
+  //printf("Enabling %d %x\n",addr,engines_mask);
   //flush_spi_write();
 }
 
 
 
 
-void set_pll(int addr, ASIC_FREQ freq) {
+void set_pll(int addr, ASIC_FREQ freq, bool with_reset) {
   //passert(vm.engines_disabled == 1);
-  write_reg_device(addr, ADDR_DLL_OFFSET_CFG_LOW, 0xC3C1C200);
+  if (with_reset) {
+    write_reg_device(addr, ADDR_DLL_OFFSET_CFG_LOW, 0xC3C1C200);
+  }
   write_reg_device(addr, ADDR_DLL_OFFSET_CFG_HIGH, 0x0082C381);
   passert(freq < ASIC_FREQ_MAX);
   passert(freq >= ASIC_FREQ_225);
@@ -90,8 +93,9 @@ void set_pll(int addr, ASIC_FREQ freq) {
   uint32_t M = ppfs->m_mult;
   uint32_t P = ppfs->p_div;
   pll_config = (M - 1) & 0xFF;
-  pll_config |= ((P - 1) & 0x1F) << 13;
+  pll_config |= ((P - 1) & 0x3F) << 13;
   pll_config |= 0x100000;
+  printf("Pll %d %x->%x\n",addr,vm.hammer[addr].freq_hw, freq);
   write_reg_device(addr, ADDR_PLL_CONFIG, pll_config);
   write_reg_device(addr, ADDR_PLL_ENABLE, 0x0);
   write_reg_device(addr, ADDR_PLL_ENABLE, 0x1);
@@ -128,19 +132,16 @@ int enable_good_engines_all_asics_ok() {
    if (killed_pll) {
      passert(test_serial(-1)); 
    }
- 
 
    //passert(vm.engines_disabled == 1);
    write_reg_broadcast(ADDR_CLK_ENABLE, ALL_ENGINES_BITMASK);
    write_reg_broadcast(ADDR_RESETING0, ALL_ENGINES_BITMASK);
    write_reg_broadcast(ADDR_RESETING1, ALL_ENGINES_BITMASK | 0x8000);
    write_reg_broadcast(ADDR_ENABLE_ENGINE, ALL_ENGINES_BITMASK);
-
    flush_spi_write();
  
 
    for (int h = 0; h < HAMMERS_COUNT ; h++) {
-    
      if (vm.loop[h/HAMMERS_PER_LOOP].enabled_loop &&
          !vm.hammer[h].asic_present) {
        write_reg_device(h, ADDR_CLK_ENABLE, 0);
@@ -151,6 +152,7 @@ int enable_good_engines_all_asics_ok() {
 
      if (vm.hammer[h].asic_present && 
         vm.hammer[h].working_engines != ALL_ENGINES_BITMASK) {
+        //printf("Working engines %x to %d\n",vm.hammer[h].working_engines,h);
         write_reg_device(h, ADDR_CLK_ENABLE, vm.hammer[h].working_engines);
         write_reg_device(h, ADDR_RESETING0, vm.hammer[h].working_engines);
         write_reg_device(h, ADDR_RESETING1, vm.hammer[h].working_engines | 0x8000);
@@ -164,7 +166,7 @@ int enable_good_engines_all_asics_ok() {
 
 
 
-
+/*
 void set_asic_freq(int addr, ASIC_FREQ new_freq) {
   if (vm.hammer[addr].freq_hw != new_freq) {
     //printf("Changes ASIC %x frequency from %d to %d\n", addr,vm.hammer[addr].freq*15+210,new_freq*15+210);
@@ -172,9 +174,9 @@ void set_asic_freq(int addr, ASIC_FREQ new_freq) {
     vm.hammer[addr].freq_wanted = new_freq;
     vm.hammer[addr].freq_hw = new_freq;
   }
-  set_pll(addr, new_freq);
+  set_pll(addr, new_freq, false);
 }
-
+*/
 
 
 

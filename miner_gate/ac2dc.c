@@ -81,17 +81,22 @@ static int ac2dc_get_power() {
 }
 
 
-void ac2dc_init() {
+void ac2dc_init(int* input_voltage) {
   int err;
   i2c_write(PRIMARY_I2C_SWITCH, PRIMARY_I2C_SWITCH_AC2DC_PIN | PRIMARY_I2C_SWITCH_DEAULT);
   int res = i2c_read_word(AC2DC_EMERSON_I2C_MGMT_DEVICE, AC2DC_I2C_READ_TEMP1_WORD, &err);
   if (!err) {
     psyslog("EMERSON AC2DC LOCATED\n");
     murata = 0;
-  } else {
+  } else {  
     psyslog("MURATA AC2DC LOCATED\n");
     murata = 1;
   }
+  *input_voltage = i2c_read_word(mgmt_addr[murata], AC2DC_I2C_READ_VIN_WORD, &err);
+  *input_voltage = ac2dc_getint(*input_voltage)/1000;
+  psyslog("INPUT VOLTAGE=%d\n", *input_voltage);
+
+ 
   i2c_write(PRIMARY_I2C_SWITCH, PRIMARY_I2C_SWITCH_DEAULT);
 }
 

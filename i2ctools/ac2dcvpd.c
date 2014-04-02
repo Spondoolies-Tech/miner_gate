@@ -114,8 +114,8 @@ int main(int argc, char *argv[])
     return usage(argv[0] , 0);
 
      i2c_init();
-
-     ac2dc_init();
+     int voltage;
+     ac2dc_init(&voltage);
 
 
      ac2dc_vpd_info_t vpd = {}; // allocte, and initializero

@@ -238,6 +238,7 @@ typedef struct {
   // asic present and used
   // If loop not enabled set to false
   uint8_t asic_present;
+  uint8_t initial_bist_done;
   // address - loop*8 + offset
   uint8_t address;
   uint8_t loop_address;
@@ -297,6 +298,13 @@ typedef struct {
 } LOOP;
 
 // Global data
+#define BIST_SM_NADA          0
+#define BIST_SM_DO_SCALING    1
+#define BIST_SM_CHANGE_FREQ1  2
+#define BIST_SM_CHANGE_FREQ2  3
+#define BIST_SM_DO_BIST_AGAIN 4
+
+
 
 typedef struct {
   // Fans set to high
@@ -307,9 +315,12 @@ typedef struct {
   int start_mine_time;
   // pll can be changed
   uint8_t engines_disabled;
+  uint8_t last_bist_state_machine;
+  
 
   // How many WINs we got
   uint32_t solved_jobs_total;
+  uint32_t false_positives_total;  
   uint32_t solved_difficulty_total;
   
   // random checking of ASICs to see utilisation.
@@ -335,9 +346,7 @@ typedef struct {
   int bist_current;  
   int bist_voltage;  
 
-  int silent_mode;
-  int thermal_test_mode;  
-  
+ 
   // ac2dc current and temperature
   int ac2dc_power;  // in ampers. 0 = bad reading.
   int dc2dc_total_power; 
@@ -347,11 +356,14 @@ typedef struct {
   int work_mode; // 0 = slow, 1 = normal, 2 = turbo
   int max_fan_level;
   int vtrim_start;
+  bool vmargin_start;
   int vtrim_max;
   int max_ac2dc_power; 
   
   int last_second_jobs;
   int cur_leading_zeroes;
+  // We give less LZ then needed to do faster scaling.
+  int cur_hw_leading_zeroes;
 
   // When system just started, search optimal speed agressively
 
@@ -364,6 +376,7 @@ typedef struct {
   // our loop and dc2dc data
   LOOP loop[LOOP_COUNT];
   uint32_t loop_vtrim[LOOP_COUNT];
+  bool loop_margin_low[LOOP_COUNT];  
 } MINER_BOX;
 
 extern MINER_BOX vm;

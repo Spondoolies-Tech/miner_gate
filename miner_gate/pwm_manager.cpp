@@ -68,10 +68,6 @@ void set_fan_level(int fan_level) {
   if (vm.fan_level != fan_level) {
 	  passert(fan_level <= 100 && fan_level >=0);
 	  int val = PWM_VALUE(fan_level);
-	  
-	  if (vm.silent_mode) {
-		  val = 20;
-	  }
 	  f = fopen("/sys/devices/ocp.3/pwm_test_P9_31.12/duty", "w");
 	  if (f <= 0) {
 	    psyslog(RED "Fan PWM not found\n" RESET);
