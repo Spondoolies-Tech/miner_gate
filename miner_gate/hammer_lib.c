@@ -446,10 +446,10 @@ int get_print_win(int winner_device) {
   uint32_t winner_id;    // = read_reg_device(winner_device, ADDR_WINNER_JOBID);
   int engine_id;
   static uint32_t next_win_reg; 
-  write_reg_device(winner_device, ADDR_INTR_CLEAR, BIT_INTR_WIN);  
   push_hammer_read(winner_device, ADDR_WINNER_NONCE, &winner_nonce);
   push_hammer_read(winner_device, ADDR_WINNER_JOBID_WINNER_ENGINE, &winner_id);
-  push_hammer_read(BROADCAST_ADDR, ADDR_BR_WIN, &next_win_reg);
+  write_reg_device(winner_device, ADDR_INTR_CLEAR, BIT_INTR_WIN);    
+  push_hammer_read(BROADCAST_ADDR, ADDR_BR_WIN, &next_win_reg);  
   squid_wait_hammer_reads();
   // Winner ID holds ID and Engine info
   engine_id = winner_id >> 8;
@@ -472,7 +472,7 @@ int get_print_win(int winner_device) {
    DBG(DBG_WINS,"- difficulty: %08x\n", work_in_hw->difficulty);
    DBG(DBG_WINS,"--- NONCE = %08x \n- ", winner_nonce);    
    */
-#if 0   
+   
    static unsigned char hash[32];
    //memset(hash,0, 32);
    compute_hash((const unsigned char*)work_in_hw->midstate,
@@ -480,28 +480,27 @@ int get_print_win(int winner_device) {
        SWAP32(work_in_hw->timestamp),
        SWAP32(work_in_hw->difficulty),
        SWAP32(winner_nonce),
-       //0x7c2bac1d,
        hash);
    //memprint((void*)hash, 32);
    int leading_zeroes = get_leading_zeroes(hash);
    //DBG(DBG_WINS,"Win leading Zeroes: %d\n", leading_zeroes);
    if (leading_zeroes < 30) {
-      psyslog("FP on %d loop %d (Lz=%x)\n", winner_device, winner_device/HAMMERS_PER_LOOP, leading_zeroes);
+      psyslog("!!! FP on %d loop %d (Lz=%x)\n", winner_device, winner_device/HAMMERS_PER_LOOP, leading_zeroes);
       vm.false_positives_total++;
       // delete win and down ASIC
       work_in_hw->winner_nonce = winner_nonce;
-      vm.hammer[winner_device].passed_last_bist_engines &= 0x7EFE;
+      vm.hammer[winner_device].passed_last_bist_engines &= 0x7EEE;
    } else if (leading_zeroes < vm.cur_leading_zeroes) {
       // not real win.
       //printf("Fake win\n");
-      work_in_hw->winner_nonce = winner_nonce;
+      //work_in_hw->winner_nonce = 0;
    } else {
-      work_in_hw->winner_nonce = winner_nonce;
+      //work_in_hw->winner_nonce = winner_nonce;
       //printf("Win %d\n", winner_id);
+      work_in_hw->winner_nonce = winner_nonce;
    }
    //end_stopper(&tv, "Win compute");
-#endif
-    work_in_hw->winner_nonce = winner_nonce;
+    
   
 
   if (work_in_hw->ntime_offset) {
@@ -619,9 +618,18 @@ BIST_VECTOR bist_tests[TOTAL_BISTS] =
 
 
 
+void wait_dll_ready() {
+   int dll;
+   int i = 0;
+   do {
+     i++;
+     dll = read_reg_broadcast(ADDR_BR_PLL_NOT_READY);
+   } while (dll != 0 && (i < 200));
+}
+
 
 // returns 1 on failed
-int do_bist_ok_rt(int long_bist) {
+int do_bist_ok_rt(int long_bist, int one_speed_above) {
   // Choose random bist.
   static int bist_id = 2;
   int next_bist;
@@ -629,14 +637,24 @@ int do_bist_ok_rt(int long_bist) {
     next_bist = rand()%TOTAL_BISTS;
   } while (next_bist == bist_id);
   bist_id = next_bist;
-//  int failed=0;
 
-  int poll_counter = 0;
-     
+
+  // Take all ASICs higher 1 speed
+  if (one_speed_above) {
+    disable_engines_all_asics();
+    for (int i = 0; i < HAMMERS_COUNT; i++) {
+      if (vm.hammer[i].asic_present) {
+        set_pll(i, vm.hammer[i].freq_wanted+1, true);
+      }
+    }
+    wait_dll_ready();
+    enable_good_engines_all_asics_ok();
+  }
+
+  int poll_counter = 0;   
   // Enter BIST mode
   write_reg_broadcast(ADDR_CONTROL_SET1, BIT_CTRL_BIST_MODE);
   poll_counter = 0;
-
 
   // Give BIST jobc
   write_reg_broadcast(ADDR_BIST_NONCE_START, bist_tests[bist_id].nonce_winner - 20000); 
@@ -714,6 +732,20 @@ int do_bist_ok_rt(int long_bist) {
   write_reg_broadcast(ADDR_CONTROL_SET0, BIT_CTRL_BIST_MODE);
   write_reg_broadcast(ADDR_WIN_LEADING_0, vm.cur_hw_leading_zeroes);
   flush_spi_write();
+
+  // Return ASICs t normal speed
+  if (one_speed_above) {
+    for (int i = 0; i < HAMMERS_COUNT; i++) {
+      if (vm.hammer[i].asic_present) {
+        disable_engines_asic(i);
+        set_pll(i, vm.hammer[i].freq_wanted, true);
+      }
+    }
+    wait_dll_ready();
+    enable_good_engines_all_asics_ok();
+  }
+  
+  
   return failed;
 }
 
@@ -963,8 +995,6 @@ void once_33_msec_pll_rt() {
   
 void update_plls_a() {
   int i;
-  static int mememe = 0;
-  mememe++;
   //printf("Set pll A\n");
   for (i = 0; i < HAMMERS_COUNT; i++) {
     if (vm.hammer[i].asic_present &&
@@ -1144,16 +1174,6 @@ void save_rate_temp(int back_tmp, int front_tmp, int total_mhash) {
     fclose(f);
 }
 
-void wait_dll_ready() {
-   int dll;
-   int i = 0;
-   do {
-     i++;
-     dll = read_reg_broadcast(ADDR_BR_PLL_NOT_READY);
-   } while (dll != 0 && (i < 200));
-
-   //printf("DLL i=%d\n",i);
-}
 
 
 // 666 times a second
@@ -1276,6 +1296,7 @@ void *i2c_state_machine_nrt(void *p) {
         if ((vm.mgmt_temp_max - mgmt_tmp) >= 3) {
           psyslog("Temperature dropped by more then 3 deg - recalibrate miner!\n");
           for (int addr = 0; addr < HAMMERS_COUNT; addr++) {
+            vm.loop[addr/HAMMERS_PER_LOOP].crit_temp_downscale = 0;
             HAMMER *a = &vm.hammer[addr];
             if (a->asic_present) {
               vm.hammer[addr].freq_thermal_limit = (ASIC_FREQ)(vm.hammer[addr].freq_bist_limit);
@@ -1294,7 +1315,7 @@ void *i2c_state_machine_nrt(void *p) {
           psyslog("Critical temperature - exit!\n");
           set_light(LIGHT_GREEN, LIGHT_MODE_OFF);          
           set_fan_level(100);
-          exit_nicely(120);
+          exit_nicely(2);
           // Never returns...
         }
         

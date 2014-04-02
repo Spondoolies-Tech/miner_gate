@@ -95,7 +95,7 @@ void set_pll(int addr, ASIC_FREQ freq, bool with_reset) {
   pll_config = (M - 1) & 0xFF;
   pll_config |= ((P - 1) & 0x3F) << 13;
   pll_config |= 0x100000;
-  printf("Pll %d %x->%x\n",addr,vm.hammer[addr].freq_hw, freq);
+  //printf("Pll %d %x->%x\n",addr,vm.hammer[addr].freq_hw, freq);
   write_reg_device(addr, ADDR_PLL_CONFIG, pll_config);
   write_reg_device(addr, ADDR_PLL_ENABLE, 0x0);
   write_reg_device(addr, ADDR_PLL_ENABLE, 0x1);

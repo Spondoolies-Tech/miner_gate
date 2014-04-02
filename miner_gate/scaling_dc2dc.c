@@ -288,7 +288,8 @@ void do_bist_fix_loops_rt() {
 
          struct timeval tv; 
          start_stopper(&tv);
-         if ((failed = do_bist_ok_rt(1))) {
+         if ((failed = do_bist_ok_rt(1, 
+            ((vm.last_bist_state_machine == BIST_SM_DO_BIST_AGAIN) || (rand()%5 == 0) )))) {
             vm.last_bist_state_machine = BIST_SM_DO_SCALING;
          } else {
             vm.last_bist_state_machine = BIST_SM_NADA;
@@ -362,14 +363,16 @@ void maybe_change_freqs_nrt() {
    counter++;
    // Run every XX seconds
    if (((counter%15) == 0) ||
-       (vm.last_bist_state_machine == 1) ||
+       (vm.last_bist_state_machine == BIST_SM_DO_SCALING) ||
        critical_downscale  ||
        (vm.ac2dc_power > vm.max_ac2dc_power)) {
            printf(MAGENTA "Running FREQ update\n" RESET);
            //!!!  HERE WE DO FREQUENCY UPDATES!!!
            asic_frequency_update_nrt();
            // Signal that we wait for ASICs to set freq
-           vm.last_bist_state_machine = 2;
+           if (vm.last_bist_state_machine == BIST_SM_DO_SCALING) {
+             vm.last_bist_state_machine = BIST_SM_CHANGE_FREQ1;
+           }
            // Dont run for next 7 seconds.
        }
 }

@@ -50,7 +50,7 @@ void _pabort(const char *s) {
 	 }
   print_stack();
 #ifdef MINERGATE  
-  exit_nicely(0);
+  exit_nicely(2);
 #else
   exit(0);
 #endif

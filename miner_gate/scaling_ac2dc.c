@@ -104,7 +104,6 @@ void loop_up(int l) {
           vm.hammer[h].agressivly_scale_up = true;
         } 
     }
-   vm.last_bist_state_machine = BIST_SM_DO_SCALING;
 }
 
 
@@ -171,6 +170,10 @@ int asic_frequency_update_nrt_fast() {
           printf("P:%d[%d] ", h->address, h->freq_wanted*15+210);
           one_ok = 1;
           h->freq_wanted = (ASIC_FREQ)(h->freq_wanted+1);
+          if (h->freq_wanted == ASIC_FREQ_MAX) {
+            disable_asic_forever_rt(h->address);
+            continue;
+          }
           h->freq_thermal_limit = h->freq_wanted;
           h->freq_bist_limit = h->freq_wanted;
           set_pll(h->address, h->freq_wanted,false);
@@ -209,7 +212,7 @@ void set_working_voltage_discover_top_speeds() {
     //usleep(10000);
     resume_asics_if_needed();
     //usleep(10000);    
-    do_bist_ok_rt(0);
+    do_bist_ok_rt(0, false);
     one_ok = asic_frequency_update_nrt_fast();
  } while (one_ok && (!kill_app));
 
@@ -253,7 +256,8 @@ void ac2dc_scaling_loop(int l) {
     
      // has unused freq - scale down.
      if (vm.loop[l].overheating_asics >= 6) {
-        if (loop_can_down(l)) {       
+        if (loop_can_down(l)) {
+          psyslog( "LOOP DOWN:%d\n" , l);            
           changed = 1;
           loop_down(l);  
           vm.ac2dc_power -= 2;
@@ -263,6 +267,7 @@ void ac2dc_scaling_loop(int l) {
                  (vm.loop[l].crit_temp_downscale < 500)) {
     // scale up
       if (loop_can_up(l)) {          
+        printf( "LOOP UP:%d\n" , l);
         changed = 1;
         loop_up(l);
         vm.ac2dc_power += 2;

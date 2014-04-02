@@ -198,7 +198,7 @@ static void sighandler(int sig)
   /* Restore signal handlers so we can still quit if kill_work fails */  
   sigaction(SIGTERM, &termhandler, NULL);
   sigaction(SIGINT, &inthandler, NULL);
-  exit_nicely();
+  exit_nicely(2);
 }
 
 
