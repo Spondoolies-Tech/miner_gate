@@ -242,7 +242,7 @@ void print_scaling() {
     }
     
     if (!hi.a->asic_present) {
-      fprintf(f, GREEN RESET "|xxxxxxxxxxxxxxxxxxxxxxxxxxx");           
+      fprintf(f, GREEN RESET "|xxxxxxxxxxxxxxxxxxxxxxxxxxxxx");           
       continue;
     }
 

@@ -472,6 +472,7 @@ int get_print_win(int winner_device) {
    DBG(DBG_WINS,"- difficulty: %08x\n", work_in_hw->difficulty);
    DBG(DBG_WINS,"--- NONCE = %08x \n- ", winner_nonce);    
    */
+#if 0   
    static unsigned char hash[32];
    //memset(hash,0, 32);
    compute_hash((const unsigned char*)work_in_hw->midstate,
@@ -488,29 +489,27 @@ int get_print_win(int winner_device) {
       psyslog("FP on %d loop %d (Lz=%x)\n", winner_device, winner_device/HAMMERS_PER_LOOP, leading_zeroes);
       vm.false_positives_total++;
       // delete win and down ASIC
-      work_in_hw->winner_nonce = 0;
+      work_in_hw->winner_nonce = winner_nonce;
       vm.hammer[winner_device].passed_last_bist_engines &= 0x7EFE;
    } else if (leading_zeroes < vm.cur_leading_zeroes) {
       // not real win.
       //printf("Fake win\n");
-      work_in_hw->winner_nonce = 0;
+      work_in_hw->winner_nonce = winner_nonce;
    } else {
       work_in_hw->winner_nonce = winner_nonce;
       //printf("Win %d\n", winner_id);
    }
    //end_stopper(&tv, "Win compute");
-      
+#endif
+    work_in_hw->winner_nonce = winner_nonce;
+  
+
+  if (work_in_hw->ntime_offset) {
+    work_in_hw->timestamp = ntohl(ntohl(work_in_hw->timestamp) - work_in_hw->ntime_offset);  
+  }
  }
-
-    if (work_in_hw->ntime_offset) {
-      work_in_hw->timestamp = ntohl(ntohl(work_in_hw->timestamp) - work_in_hw->ntime_offset);  
-    }
-    vm.concecutive_bad_wins = 0;
-    // Test win:
-    
-
-    
-    return next_win_reg;
+  vm.concecutive_bad_wins = 0;
+  // Test win:
   } else {
     psyslog( "!!!!!  Warning !!!!: Win orphan job 0x%x, nonce=0x%x!!!\n" ,winner_id,  winner_nonce);
     vm.concecutive_bad_wins++;
@@ -518,7 +517,6 @@ int get_print_win(int winner_device) {
       // Hammers out of sync.
       exit_nicely();
     }
-    return next_win_reg;
   }
   return next_win_reg;
 }
@@ -641,8 +639,8 @@ int do_bist_ok_rt(int long_bist) {
 
 
   // Give BIST jobc
-  write_reg_broadcast(ADDR_BIST_NONCE_START, bist_tests[bist_id].nonce_winner - 50000); 
-  write_reg_broadcast(ADDR_BIST_NONCE_RANGE, 50500);
+  write_reg_broadcast(ADDR_BIST_NONCE_START, bist_tests[bist_id].nonce_winner - 20000); 
+  write_reg_broadcast(ADDR_BIST_NONCE_RANGE, 20500);
   write_reg_broadcast(ADDR_BIST_NONCE_EXPECTED, bist_tests[bist_id].nonce_winner); // 0x1DAC2B7C
   write_reg_broadcast(ADDR_MID_STATE + 0, bist_tests[bist_id].midstate[0]);
   write_reg_broadcast(ADDR_MID_STATE + 1, bist_tests[bist_id].midstate[1]);
@@ -675,7 +673,7 @@ int do_bist_ok_rt(int long_bist) {
   //    passert(0);
       break;
     } 
-    //usleep(1);
+    usleep(1);
     i++;
   }
   printf("polls=%d, bist_id=%d\n", i,bist_id);
@@ -1159,7 +1157,7 @@ void wait_dll_ready() {
 
 
 // 666 times a second
-void once_1500_usec_tasks_rt() {
+void once_1650_usec_tasks_rt() {
   static int counter = 0;
   //start_stopper(&tv);
   static uint32_t idle=0;
@@ -1185,16 +1183,17 @@ void once_1500_usec_tasks_rt() {
   }
 
 
-  if (counter % 22 == 0) {
+  if (counter % 20 == 0) {
     once_33_msec_tasks_rt();
     push_job_to_hw_rt();    
     // Push one more job!
   }
 
-  if (counter % 22 == 10) {
+  if (counter % 20 == 10) {
     once_33_msec_temp_rt();
     push_job_to_hw_rt();
   }
+
 
   // The PLL like to lock slowly
   if ((counter % 1000 == 3) || 
@@ -1331,7 +1330,7 @@ void *i2c_state_machine_nrt(void *p) {
 
 
         // every 3 minutes
-        if (counter%(48*60*1) == 0) {
+        if (counter%(48*60*3) == 0) {
             ac2dc_scaling();
         }
 
@@ -1399,7 +1398,7 @@ void *squid_regular_state_machine_rt(void *p) {
       // new job every 1.5 msecs = 660 per second
       pthread_mutex_lock(&hammer_mutex);
       //start_stopper(&tv);
-      once_1500_usec_tasks_rt();
+      once_1650_usec_tasks_rt();
       //end_stopper(&tv,"WHOOOOOOOOOOOOLE 1500 TIMER");
       pthread_mutex_unlock(&hammer_mutex);
 
