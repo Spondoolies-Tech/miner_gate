@@ -39,7 +39,7 @@
 
 // In seconds
 #define BIST_PERIOD_SECS                              30 
-#define AGRESSIVE_BIST_PERIOD_SECS                    30
+#define AGRESSIVE_BIST_PERIOD_SECS                    15
 #define AGRESSIVE_BIST_PERIOD_UPTIME_SECS         (60*20)
 
 

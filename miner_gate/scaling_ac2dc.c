@@ -68,7 +68,6 @@ void loop_down(int l) {
         */
       }
    }
-   vm.last_bist_state_machine = BIST_SM_DO_SCALING;
 }
 
 
@@ -176,7 +175,7 @@ int asic_frequency_update_nrt_fast() {
           }
           h->freq_thermal_limit = h->freq_wanted;
           h->freq_bist_limit = h->freq_wanted;
-          set_pll(h->address, h->freq_wanted,false);
+          set_pll(h->address, h->freq_wanted);
       } else if (h->freq_wanted == ASIC_FREQ_225) {
           // FAILED BIST at FREQ 225
           printf("X:%d[%d] (%x)", h->address, h->freq_wanted*15+210, passed);
@@ -185,7 +184,7 @@ int asic_frequency_update_nrt_fast() {
           h->freq_wanted = (ASIC_FREQ)(h->freq_wanted+1);
           h->freq_thermal_limit = h->freq_wanted;
           h->freq_bist_limit = h->freq_wanted;
-          set_pll(h->address, h->freq_wanted,false);
+          set_pll(h->address, h->freq_wanted);
       } else {
           // take one before last BIST.
           printf("F:%d[%d] (%x)", h->address, h->freq_wanted*15+210, passed);
@@ -193,7 +192,7 @@ int asic_frequency_update_nrt_fast() {
           h->freq_wanted = (ASIC_FREQ)(h->freq_wanted-1);
           h->freq_thermal_limit = h->freq_wanted;
           h->freq_bist_limit = h->freq_wanted;    
-          set_pll(h->address, h->freq_wanted,false);  
+          set_pll(h->address, h->freq_wanted);  
           h->initial_bist_done = 1;
       }
       h->passed_last_bist_engines = ALL_ENGINES_BITMASK;
@@ -212,7 +211,7 @@ void set_working_voltage_discover_top_speeds() {
     //usleep(10000);
     resume_asics_if_needed();
     //usleep(10000);    
-    do_bist_ok_rt(0, false);
+    do_bist_ok_rt(0);
     one_ok = asic_frequency_update_nrt_fast();
  } while (one_ok && (!kill_app));
 
@@ -270,7 +269,7 @@ void ac2dc_scaling_loop(int l) {
         printf( "LOOP UP:%d\n" , l);
         changed = 1;
         loop_up(l);
-        vm.ac2dc_power += 2;
+        vm.ac2dc_power += 3;
       }
     }    
   }

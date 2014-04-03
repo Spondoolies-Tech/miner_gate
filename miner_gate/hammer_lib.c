@@ -292,7 +292,6 @@ void print_state() {
 // Queues work to actual HW
 // returns 1 if found nonce
 void push_to_hw_queue_rt(RT_JOB *work) {
-  
   //flush_spi_write();
   static int j = 0;
   int i;
@@ -446,10 +445,10 @@ int get_print_win(int winner_device) {
   uint32_t winner_id;    // = read_reg_device(winner_device, ADDR_WINNER_JOBID);
   int engine_id;
   static uint32_t next_win_reg; 
+  write_reg_device(winner_device, ADDR_INTR_CLEAR, BIT_INTR_WIN);  
   push_hammer_read(winner_device, ADDR_WINNER_NONCE, &winner_nonce);
   push_hammer_read(winner_device, ADDR_WINNER_JOBID_WINNER_ENGINE, &winner_id);
-  write_reg_device(winner_device, ADDR_INTR_CLEAR, BIT_INTR_WIN);    
-  push_hammer_read(BROADCAST_ADDR, ADDR_BR_WIN, &next_win_reg);  
+  push_hammer_read(BROADCAST_ADDR, ADDR_BR_WIN, &next_win_reg);
   squid_wait_hammer_reads();
   // Winner ID holds ID and Engine info
   engine_id = winner_id >> 8;
@@ -457,6 +456,8 @@ int get_print_win(int winner_device) {
   RT_JOB *work_in_hw = peak_rt_queue(winner_id);
 
   if (work_in_hw->work_state == WORK_STATE_HAS_JOB) {
+
+#if 0
     struct timeval tv;
     if (winner_nonce != 0) {
 
@@ -500,13 +501,14 @@ int get_print_win(int winner_device) {
       work_in_hw->winner_nonce = winner_nonce;
    }
    //end_stopper(&tv, "Win compute");
-    
-  
+#endif
+
+  work_in_hw->winner_nonce = winner_nonce;
+
 
   if (work_in_hw->ntime_offset) {
     work_in_hw->timestamp = ntohl(ntohl(work_in_hw->timestamp) - work_in_hw->ntime_offset);  
   }
- }
   vm.concecutive_bad_wins = 0;
   // Test win:
   } else {
@@ -617,7 +619,7 @@ BIST_VECTOR bist_tests[TOTAL_BISTS] =
 };
 
 
-
+/*
 void wait_dll_ready() {
    int dll;
    int i = 0;
@@ -626,76 +628,81 @@ void wait_dll_ready() {
      dll = read_reg_broadcast(ADDR_BR_PLL_NOT_READY);
    } while (dll != 0 && (i < 200));
 }
+*/
 
 
-// returns 1 on failed
-int do_bist_ok_rt(int long_bist, int one_speed_above) {
-  // Choose random bist.
-  static int bist_id = 2;
-  int next_bist;
-  do {
-    next_bist = rand()%TOTAL_BISTS;
-  } while (next_bist == bist_id);
-  bist_id = next_bist;
+// returns 1 on success
+int do_bist_ok_rt(int long_bist) {
+   // Choose random bist.
+  static int bist_id = 0;
 
 
-  // Take all ASICs higher 1 speed
-  if (one_speed_above) {
-    disable_engines_all_asics();
-    for (int i = 0; i < HAMMERS_COUNT; i++) {
-      if (vm.hammer[i].asic_present) {
-        set_pll(i, vm.hammer[i].freq_wanted+1, true);
-      }
-    }
-    wait_dll_ready();
-    enable_good_engines_all_asics_ok();
-  }
 
-  int poll_counter = 0;   
+  int poll_counter = 0;
+     
   // Enter BIST mode
-  write_reg_broadcast(ADDR_CONTROL_SET1, BIT_CTRL_BIST_MODE);
+  write_reg_broadcast(ADDR_COMMAND, BIT_CMD_END_JOB);
+  write_reg_broadcast(ADDR_COMMAND, BIT_CMD_END_JOB);
+  write_reg_broadcast(ADDR_CONTROL_SET1, BIT_CTRL_BIST_MODE);  
   poll_counter = 0;
-
-  // Give BIST jobc
-  write_reg_broadcast(ADDR_BIST_NONCE_START, bist_tests[bist_id].nonce_winner - 20000); 
-  write_reg_broadcast(ADDR_BIST_NONCE_RANGE, 20500);
-  write_reg_broadcast(ADDR_BIST_NONCE_EXPECTED, bist_tests[bist_id].nonce_winner); // 0x1DAC2B7C
-  write_reg_broadcast(ADDR_MID_STATE + 0, bist_tests[bist_id].midstate[0]);
-  write_reg_broadcast(ADDR_MID_STATE + 1, bist_tests[bist_id].midstate[1]);
-  write_reg_broadcast(ADDR_MID_STATE + 2, bist_tests[bist_id].midstate[2]);
-  write_reg_broadcast(ADDR_MID_STATE + 3, bist_tests[bist_id].midstate[3]);
-  write_reg_broadcast(ADDR_MID_STATE + 4, bist_tests[bist_id].midstate[4]);
-  write_reg_broadcast(ADDR_MID_STATE + 5, bist_tests[bist_id].midstate[5]);
-  write_reg_broadcast(ADDR_MID_STATE + 6, bist_tests[bist_id].midstate[6]);
-  write_reg_broadcast(ADDR_MID_STATE + 7, bist_tests[bist_id].midstate[7]);
-  write_reg_broadcast(ADDR_MERKLE_ROOT, bist_tests[bist_id].mrkl);
-  write_reg_broadcast(ADDR_TIMESTEMP, bist_tests[bist_id].timestamp);
-  write_reg_broadcast(ADDR_DIFFICULTY, bist_tests[bist_id].difficulty);
-  write_reg_broadcast(ADDR_WIN_LEADING_0, bist_tests[bist_id].leading);
-  write_reg_broadcast(ADDR_JOB_ID, 0xEE);
-  write_reg_broadcast(ADDR_COMMAND, BIT_CMD_LOAD_JOB);
-  flush_spi_write();
+  int failed = 0;
 
 
-  // POLL RESULT    
-  int res;
-  int i = 1;
-  vm.bist_current = 0;
+
+   // Give BIST jobc
+   write_reg_broadcast(ADDR_BIST_NONCE_START, bist_tests[bist_id].nonce_winner - 24500); 
+   write_reg_broadcast(ADDR_BIST_NONCE_RANGE, 25000);
+   write_reg_broadcast(ADDR_BIST_NONCE_EXPECTED, bist_tests[bist_id].nonce_winner); 
+   write_reg_broadcast(ADDR_MID_STATE + 0, bist_tests[bist_id].midstate[0]);
+   write_reg_broadcast(ADDR_MID_STATE + 1, bist_tests[bist_id].midstate[1]);
+   write_reg_broadcast(ADDR_MID_STATE + 2, bist_tests[bist_id].midstate[2]);
+   write_reg_broadcast(ADDR_MID_STATE + 3, bist_tests[bist_id].midstate[3]);
+   write_reg_broadcast(ADDR_MID_STATE + 4, bist_tests[bist_id].midstate[4]);
+   write_reg_broadcast(ADDR_MID_STATE + 5, bist_tests[bist_id].midstate[5]);
+   write_reg_broadcast(ADDR_MID_STATE + 6, bist_tests[bist_id].midstate[6]);
+   write_reg_broadcast(ADDR_MID_STATE + 7, bist_tests[bist_id].midstate[7]);
+   write_reg_broadcast(ADDR_MERKLE_ROOT, bist_tests[bist_id].mrkl);
+   write_reg_broadcast(ADDR_TIMESTEMP, bist_tests[bist_id].timestamp);
+   write_reg_broadcast(ADDR_DIFFICULTY, bist_tests[bist_id].difficulty);
+   write_reg_broadcast(ADDR_WIN_LEADING_0, bist_tests[bist_id].leading);
+   write_reg_broadcast(ADDR_JOB_ID, 0xEE);
+   write_reg_broadcast(ADDR_COMMAND, BIT_CMD_LOAD_JOB);
+   flush_spi_write();
+   bist_id = (bist_id+1)%TOTAL_BISTS;
+
   
-  int err;
-  while ((res = read_reg_broadcast(ADDR_BR_CONDUCTOR_BUSY))) {
-    if (i == 100) {
-        int addr = BROADCAST_READ_ADDR(res);
-        psyslog("Asic %x didnt finish BIST\n", addr);
-  //    disable_asic_forever_rt(addr);
-  //    passert(0);
-      break;
-    } 
-    usleep(1);
-    i++;
+   int i = 0;
+   int res;
+   while ((res = read_reg_broadcast(ADDR_BR_CONDUCTOR_BUSY))) {
+     if (i == 100) {
+         int addr = BROADCAST_READ_ADDR(res);
+         psyslog("Asic %x didnt finish BIST\n", addr);
+       break;
+     }
+     i++;
+   }
+
+
+  int bist_fail;
+  while (bist_fail = read_reg_broadcast(ADDR_BR_BIST_FAIL)) {
+    uint16_t failed_addr = BROADCAST_READ_ADDR(bist_fail);
+    HAMMER *h = ASIC_GET_BY_ADDR(failed_addr);
+    h->passed_last_bist_engines = read_reg_device(failed_addr, ADDR_BIST_PASS);
+   /* printf(RED "Failed Bist[%d] %x::%x \n" RESET, j, failed_addr, 
+                h->passed_last_bist_engines, h->freq_wanted, h->freq_hw);*/
+    write_reg_device(failed_addr, ADDR_INTR_CLEAR, BIT_INTR_BIST_FAIL);
+    write_reg_device(failed_addr, ADDR_INTR_CLEAR, BIT_INTR_WIN);
+    write_reg_device(failed_addr, ADDR_CONTROL_SET0, BIT_CTRL_BIST_MODE);
+    flush_spi_write();
+    // print_devreg(ADDR_INTR_RAW , "ADDR_INTR_RAW ");
+    failed++;
+    //passert(0);
   }
-  printf("polls=%d, bist_id=%d\n", i,bist_id);
-  
+
+  write_reg_broadcast(ADDR_INTR_CLEAR, BIT_INTR_WIN);
+  //printf("polls=%d, bist_id=%d\n", i,bist_id);
+ 
+
  
 
   uint32_t single_win_test;
@@ -706,46 +713,12 @@ int do_bist_ok_rt(int long_bist, int one_speed_above) {
   }
 #endif  
   // Exit BIST
-  int bist_fail;
-  int failed = 0;
   //passert(read_reg_broadcast(ADDR_BR_WIN));
   
-  while (bist_fail = read_reg_broadcast(ADDR_BR_BIST_FAIL)) {
-    uint16_t failed_addr = BROADCAST_READ_ADDR(bist_fail);
-    HAMMER *h = ASIC_GET_BY_ADDR(failed_addr);
-    h->passed_last_bist_engines = read_reg_device(failed_addr, ADDR_BIST_PASS);
-    // printf("Writing %x to %x because read %d\n", BIT_INTR_BIST_FAIL,
-    // failed_addr, bist_fail);
-    //if (!1) {
-    //printf(RED "Failed Bist %x::%x, speed %x:%x \n" RESET, failed_addr, 
-    //            h->passed_last_bist_engines, h->freq_wanted, h->freq_hw);
-    //}
-    write_reg_device(failed_addr, ADDR_INTR_CLEAR, BIT_INTR_BIST_FAIL);
-    write_reg_device(failed_addr, ADDR_INTR_CLEAR, BIT_INTR_WIN);
-    write_reg_device(failed_addr, ADDR_CONTROL_SET0, BIT_CTRL_BIST_MODE);
-    // print_devreg(ADDR_INTR_RAW , "ADDR_INTR_RAW ");
-    failed++;
-    //passert(0);
-  }
-  
-  write_reg_broadcast(ADDR_INTR_CLEAR, BIT_INTR_WIN);
+ 
   write_reg_broadcast(ADDR_CONTROL_SET0, BIT_CTRL_BIST_MODE);
-  write_reg_broadcast(ADDR_WIN_LEADING_0, vm.cur_hw_leading_zeroes);
+  write_reg_broadcast(ADDR_WIN_LEADING_0, vm.cur_leading_zeroes);
   flush_spi_write();
-
-  // Return ASICs t normal speed
-  if (one_speed_above) {
-    for (int i = 0; i < HAMMERS_COUNT; i++) {
-      if (vm.hammer[i].asic_present) {
-        disable_engines_asic(i);
-        set_pll(i, vm.hammer[i].freq_wanted, true);
-      }
-    }
-    wait_dll_ready();
-    enable_good_engines_all_asics_ok();
-  }
-  
-  
   return failed;
 }
 
@@ -812,7 +785,7 @@ void once_second_tasks_rt() {
     }
   } 
 
-  if (!vm.asics_shut_down_powersave) {
+ if (!vm.asics_shut_down_powersave) {
     // Change frequencies if needed
     if (vm.cosecutive_jobs >= MIN_COSECUTIVE_JOBS_FOR_SCALING) {
       do_bist_fix_loops_rt();
@@ -992,16 +965,17 @@ void once_33_msec_pll_rt() {
   //squid_wait_hammer_reads();
 }
 #endif  // Change ALL PLLS at once
-  
+
+/*  
 void update_plls_a() {
   int i;
   //printf("Set pll A\n");
   for (i = 0; i < HAMMERS_COUNT; i++) {
     if (vm.hammer[i].asic_present &&
-         ((vm.hammer[i].freq_wanted != vm.hammer[i].freq_hw)) /*|| ((mememe%HAMMERS_COUNT) == i)*/) {
+         ((vm.hammer[i].freq_wanted != vm.hammer[i].freq_hw)) ) {
       disable_engines_asic(i);
       //printf("Set pll %x %d to %d\n",i,vm.hammer[i].freq_hw,vm.hammer[i].freq_wanted);
-      set_pll(i, vm.hammer[i].freq_wanted, true);
+      set_pll(i, vm.hammer[i].freq_wanted);
       //vm.hammer[i].freq_hw = vm.hammer[i].freq_wanted;
       vm.hammer[i].pll_waiting_reply = true;
       //write_reg_device(i, ADDR_CONTROL_SET1, BIT_CTRL_DISABLE_TX);
@@ -1020,13 +994,12 @@ void update_plls_b() {
     }
   }
 }
+*/
 
 void once_33_msec_temp_rt() {
   static uint32_t intr_reg=0;
   static int measure_temp_addr = 0;
   static uint32_t win_reg =0;
-
-#if 0   
   if (vm.hammer[pll_set_addr].asic_present && 
       vm.hammer[pll_set_addr].pll_waiting_reply) {
     enable_engines_asic(vm.hammer[pll_set_addr].address, vm.hammer[pll_set_addr].working_engines);
@@ -1036,11 +1009,11 @@ void once_33_msec_temp_rt() {
 
  
 
-   // find next PLL   
+   // find next PLL
    pll_set_addr = (pll_set_addr+1)%HAMMERS_COUNT;
-   for (int i = 0 ; i < 20 ; i++) {
+   for (int i = 0 ; i < 10 ; i++) {
      if (!vm.hammer[pll_set_addr].asic_present ||
-         (vm.hammer[pll_set_addr].freq_wanted == vm.hammer[pll_set_addr].freq_hw)) {
+        (vm.hammer[pll_set_addr].freq_wanted == vm.hammer[pll_set_addr].freq_hw)) {
        pll_set_addr = (pll_set_addr+1)%HAMMERS_COUNT;
      } else {
        break;
@@ -1048,7 +1021,7 @@ void once_33_msec_temp_rt() {
    }
    
 
-   // prepare next PLL - start pll change  
+   // prepare next PLL - start pll change
    if (vm.hammer[pll_set_addr].asic_present && 
        (vm.hammer[pll_set_addr].freq_wanted != vm.hammer[pll_set_addr].freq_hw)) {
      disable_engines_asic(pll_set_addr);
@@ -1059,27 +1032,24 @@ void once_33_msec_temp_rt() {
      write_reg_device(pll_set_addr, ADDR_CONTROL_SET1, BIT_CTRL_DISABLE_TX);
      vm.hammer[pll_set_addr].pll_waiting_reply = true;
    }
-#endif  
+  
   push_hammer_read(BROADCAST_ADDR, ADDR_BR_WIN, &win_reg);
 
-#if 1
   measure_temp_addr = (measure_temp_addr+1)%HAMMERS_COUNT;
   if(vm.hammer[measure_temp_addr].asic_present) {
     set_temp_reading_rt( measure_temp_addr, &intr_reg); 
   }
-#endif  
   
 //-------------------------------
  squid_wait_hammer_reads();
 //-------------------------------
 
-#if 1
   // Update temperature.
   if (vm.hammer[measure_temp_addr].asic_present) {
       // will be NULL on first run, not a problem
       proccess_temp_reading_rt(&vm.hammer[measure_temp_addr], intr_reg);
   } 
-#endif
+
 
 // read last time...
   while (win_reg) {
@@ -1088,7 +1058,7 @@ void once_33_msec_temp_rt() {
        uint16_t winner_device = BROADCAST_READ_ADDR(win_reg);
        vm.hammer[winner_device].solved_jobs++;
        vm.solved_jobs_total++;
-       vm.solved_difficulty_total += 1<<(vm.cur_hw_leading_zeroes-32);
+       vm.solved_difficulty_total += 1<<(vm.cur_leading_zeroes-32);
        //printf("WON:%x\n", winner_device);
        win_reg = get_print_win(winner_device);
        //end_stopper(&tv,"WIN STOPPER");
@@ -1118,22 +1088,14 @@ void push_job_to_hw_rt() {
     // Update leading zeroes?
     vm.not_mining_time = 0;
     if (work.leading_zeroes != vm.cur_leading_zeroes) {
-      vm.cur_leading_zeroes = work.leading_zeroes;      
-      if (vm.cur_leading_zeroes < MAX_LEADING_ZEROES) {
-        vm.cur_hw_leading_zeroes = work.leading_zeroes;        
-      } else {
-        vm.cur_hw_leading_zeroes = MAX_LEADING_ZEROES;                
-      }
-      write_reg_broadcast(ADDR_WIN_LEADING_0, vm.cur_hw_leading_zeroes);
+      vm.cur_leading_zeroes = work.leading_zeroes;
+      write_reg_broadcast(ADDR_WIN_LEADING_0, vm.cur_leading_zeroes);
     }
     //flush_spi_write();
-#if 1
     if (work.ntime_offset) {
-      //work.ntime_offset++;
       work.timestamp = ntohl(ntohl(work.timestamp) + work.ntime_offset);  
       //work.timestamp += work.ntime_offset;
     }
-#endif     
     actual_work = add_to_sw_rt_queue(&work);
     // write_reg_device(0, ADDR_CURRENT_NONCE_START, rand() + rand()<<16);
     // write_reg_device(0, ADDR_CURRENT_NONCE_START + 1, rand() + rand()<<16);
@@ -1214,7 +1176,7 @@ void once_1650_usec_tasks_rt() {
     push_job_to_hw_rt();
   }
 
-
+/*
   // The PLL like to lock slowly
   if ((counter % 1000 == 3) || 
       (vm.last_bist_state_machine == BIST_SM_CHANGE_FREQ2)) {
@@ -1233,7 +1195,7 @@ void once_1650_usec_tasks_rt() {
        vm.last_bist_state_machine = BIST_SM_CHANGE_FREQ2;
      }
   }
- 
+ */
   
  
   //end_stopper(&tv,"3x3x");
@@ -1315,7 +1277,7 @@ void *i2c_state_machine_nrt(void *p) {
           psyslog("Critical temperature - exit!\n");
           set_light(LIGHT_GREEN, LIGHT_MODE_OFF);          
           set_fan_level(100);
-          exit_nicely(2);
+          exit_nicely(120);
           // Never returns...
         }
         

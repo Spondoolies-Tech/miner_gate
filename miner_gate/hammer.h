@@ -363,7 +363,7 @@ typedef struct {
   int last_second_jobs;
   int cur_leading_zeroes;
   // We give less LZ then needed to do faster scaling.
-  int cur_hw_leading_zeroes;
+  //int cur_hw_leading_zeroes;
 
   // When system just started, search optimal speed agressively
 

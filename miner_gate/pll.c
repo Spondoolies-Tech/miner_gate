@@ -68,22 +68,19 @@ void disable_engines_asic(int addr) {
 
 void enable_engines_asic(int addr, int engines_mask) {
   //printf("Disabling engines:\n");
-  write_reg_device(addr,ADDR_CLK_ENABLE, engines_mask);
+  write_reg_device(addr,ADDR_CLK_ENABLE, engines_mask);  
+  write_reg_device(addr,ADDR_ENABLE_ENGINE, engines_mask);
+  write_reg_device(addr,ADDR_RESETING1, engines_mask | 0x8000);
   write_reg_device(addr,ADDR_RESETING0, engines_mask);
-  write_reg_device(addr,ADDR_RESETING1, engines_mask | 0x8000);  
-  write_reg_device(addr,ADDR_ENABLE_ENGINE, engines_mask);  
-  //printf("Enabling %d %x\n",addr,engines_mask);
   //flush_spi_write();
 }
 
 
 
 
-void set_pll(int addr, ASIC_FREQ freq, bool with_reset) {
+void set_pll(int addr, ASIC_FREQ freq) {
   //passert(vm.engines_disabled == 1);
-  if (with_reset) {
-    write_reg_device(addr, ADDR_DLL_OFFSET_CFG_LOW, 0xC3C1C200);
-  }
+  write_reg_device(addr, ADDR_DLL_OFFSET_CFG_LOW, 0xC3C1C200);
   write_reg_device(addr, ADDR_DLL_OFFSET_CFG_HIGH, 0x0082C381);
   passert(freq < ASIC_FREQ_MAX);
   passert(freq >= ASIC_FREQ_225);
@@ -93,7 +90,7 @@ void set_pll(int addr, ASIC_FREQ freq, bool with_reset) {
   uint32_t M = ppfs->m_mult;
   uint32_t P = ppfs->p_div;
   pll_config = (M - 1) & 0xFF;
-  pll_config |= ((P - 1) & 0x3F) << 13;
+  pll_config |= ((P - 1) & 0x1F) << 13;
   pll_config |= 0x100000;
   //printf("Pll %d %x->%x\n",addr,vm.hammer[addr].freq_hw, freq);
   write_reg_device(addr, ADDR_PLL_CONFIG, pll_config);

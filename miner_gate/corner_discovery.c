@@ -37,7 +37,7 @@ void enable_voltage_freq(ASIC_FREQ f) {
         HAMMER *a = &vm.hammer[l * HAMMERS_PER_LOOP + h];
         // Set freq
         if (a->asic_present) {
-          set_pll(a->address, f, true);
+          set_pll(a->address, f);
         }
       }
     }
