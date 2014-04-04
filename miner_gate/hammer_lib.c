@@ -50,6 +50,7 @@ extern int enable_reg_debug;
 RT_JOB *add_to_sw_rt_queue(const RT_JOB *work);
 void reset_sw_rt_queue();
 RT_JOB *peak_rt_queue(uint8_t hw_id);
+void push_job_to_hw_rt();
 
 void dump_zabbix_stats();
 
@@ -391,7 +392,6 @@ int allocate_addresses_to_devices() {
           vm.hammer[addr].freq_thermal_limit = MAX_ASIC_FREQ;
           vm.hammer[addr].freq_bist_limit = MAX_ASIC_FREQ;
           vm.hammer[addr].freq_wanted = MINIMAL_ASIC_FREQ;
-         
         } else {
           vm.hammer[addr].address = addr;
           vm.hammer[addr].loop_address = l;
@@ -444,7 +444,7 @@ int get_print_win(int winner_device) {
   uint32_t winner_nonce; // = read_reg_device(winner_device, ADDR_WINNER_NONCE);
   uint32_t winner_id;    // = read_reg_device(winner_device, ADDR_WINNER_JOBID);
   int engine_id;
-  static uint32_t next_win_reg; 
+  uint32_t next_win_reg = 0; 
   write_reg_device(winner_device, ADDR_INTR_CLEAR, BIT_INTR_WIN);  
   push_hammer_read(winner_device, ADDR_WINNER_NONCE, &winner_nonce);
   push_hammer_read(winner_device, ADDR_WINNER_JOBID_WINNER_ENGINE, &winner_id);
@@ -456,11 +456,9 @@ int get_print_win(int winner_device) {
   RT_JOB *work_in_hw = peak_rt_queue(winner_id);
 
   if (work_in_hw->work_state == WORK_STATE_HAS_JOB) {
-
-#if 0
     struct timeval tv;
     if (winner_nonce != 0) {
-
+    
    //start_stopper(&tv);
    //DBG(DBG_WINS,"------ FOUND WIN:----\n");
    //DBG(DBG_WINS,"- midstate:\n");         
@@ -473,7 +471,17 @@ int get_print_win(int winner_device) {
    DBG(DBG_WINS,"- difficulty: %08x\n", work_in_hw->difficulty);
    DBG(DBG_WINS,"--- NONCE = %08x \n- ", winner_nonce);    
    */
-   
+/*
+    memcpy((const unsigned char*)vm.last_win.midstate, (const unsigned char*)work_in_hw->midstate, sizeof(work_in_hw->midstate));   
+    vm.last_win.mrkle_root = work_in_hw->mrkle_root;
+    vm.last_win.timestamp = work_in_hw->timestamp;
+    vm.last_win.difficulty = work_in_hw->difficulty;
+    vm.last_win.winner_nonce = winner_nonce;    
+    vm.last_win.winner_engine = engine_id;    
+    vm.last_win.winner_device = winner_device;
+  */
+  
+#if 0   
    static unsigned char hash[32];
    //memset(hash,0, 32);
    compute_hash((const unsigned char*)work_in_hw->midstate,
@@ -481,36 +489,35 @@ int get_print_win(int winner_device) {
        SWAP32(work_in_hw->timestamp),
        SWAP32(work_in_hw->difficulty),
        SWAP32(winner_nonce),
+       //0x7c2bac1d,
        hash);
    //memprint((void*)hash, 32);
    int leading_zeroes = get_leading_zeroes(hash);
    //DBG(DBG_WINS,"Win leading Zeroes: %d\n", leading_zeroes);
    if (leading_zeroes < 30) {
-      psyslog("!!! FP on %d loop %d (Lz=%x)\n", winner_device, winner_device/HAMMERS_PER_LOOP, leading_zeroes);
+      psyslog("FP on %d loop %d (Lz=%x)\n", winner_device, winner_device/HAMMERS_PER_LOOP, leading_zeroes);
       vm.false_positives_total++;
       // delete win and down ASIC
-      work_in_hw->winner_nonce = winner_nonce;
-      vm.hammer[winner_device].passed_last_bist_engines &= 0x7EEE;
+      work_in_hw->winner_nonce = 0;
+      vm.hammer[winner_device].passed_last_bist_engines &= 0x7EFE;
    } else if (leading_zeroes < vm.cur_leading_zeroes) {
       // not real win.
       //printf("Fake win\n");
-      //work_in_hw->winner_nonce = 0;
+      work_in_hw->winner_nonce = 0;
    } else {
-      //work_in_hw->winner_nonce = winner_nonce;
-      //printf("Win %d\n", winner_id);
       work_in_hw->winner_nonce = winner_nonce;
+      //printf("Win %d\n", winner_id);
    }
    //end_stopper(&tv, "Win compute");
-#endif
+#endif      
+    //printf("Win\n");
+    work_in_hw->winner_nonce = winner_nonce;
 
-  work_in_hw->winner_nonce = winner_nonce;
-
-
-  if (work_in_hw->ntime_offset) {
-    work_in_hw->timestamp = ntohl(ntohl(work_in_hw->timestamp) - work_in_hw->ntime_offset);  
-  }
-  vm.concecutive_bad_wins = 0;
-  // Test win:
+    if (work_in_hw->ntime_offset) {
+      work_in_hw->timestamp = ntohl(ntohl(work_in_hw->timestamp) - work_in_hw->ntime_offset);  
+    }
+    vm.concecutive_bad_wins = 0;
+   }
   } else {
     psyslog( "!!!!!  Warning !!!!: Win orphan job 0x%x, nonce=0x%x!!!\n" ,winner_id,  winner_nonce);
     vm.concecutive_bad_wins++;
@@ -619,21 +626,11 @@ BIST_VECTOR bist_tests[TOTAL_BISTS] =
 };
 
 
-/*
-void wait_dll_ready() {
-   int dll;
-   int i = 0;
-   do {
-     i++;
-     dll = read_reg_broadcast(ADDR_BR_PLL_NOT_READY);
-   } while (dll != 0 && (i < 200));
-}
-*/
 
 
-// returns 1 on success
+// returns 1 on failed
 int do_bist_ok_rt(int long_bist) {
-   // Choose random bist.
+  // Choose random bist.
   static int bist_id = 0;
 
 
@@ -650,8 +647,8 @@ int do_bist_ok_rt(int long_bist) {
 
 
    // Give BIST jobc
-   write_reg_broadcast(ADDR_BIST_NONCE_START, bist_tests[bist_id].nonce_winner - 24500); 
-   write_reg_broadcast(ADDR_BIST_NONCE_RANGE, 25000);
+   write_reg_broadcast(ADDR_BIST_NONCE_START, bist_tests[bist_id].nonce_winner - 20000); 
+   write_reg_broadcast(ADDR_BIST_NONCE_RANGE, 20500);
    write_reg_broadcast(ADDR_BIST_NONCE_EXPECTED, bist_tests[bist_id].nonce_winner); 
    write_reg_broadcast(ADDR_MID_STATE + 0, bist_tests[bist_id].midstate[0]);
    write_reg_broadcast(ADDR_MID_STATE + 1, bist_tests[bist_id].midstate[1]);
@@ -688,6 +685,7 @@ int do_bist_ok_rt(int long_bist) {
     uint16_t failed_addr = BROADCAST_READ_ADDR(bist_fail);
     HAMMER *h = ASIC_GET_BY_ADDR(failed_addr);
     h->passed_last_bist_engines = read_reg_device(failed_addr, ADDR_BIST_PASS);
+    
    /* printf(RED "Failed Bist[%d] %x::%x \n" RESET, j, failed_addr, 
                 h->passed_last_bist_engines, h->freq_wanted, h->freq_hw);*/
     write_reg_device(failed_addr, ADDR_INTR_CLEAR, BIT_INTR_BIST_FAIL);
@@ -785,7 +783,7 @@ void once_second_tasks_rt() {
     }
   } 
 
- if (!vm.asics_shut_down_powersave) {
+  if (!vm.asics_shut_down_powersave) {
     // Change frequencies if needed
     if (vm.cosecutive_jobs >= MIN_COSECUTIVE_JOBS_FOR_SCALING) {
       do_bist_fix_loops_rt();
@@ -844,6 +842,7 @@ int update_vm_with_currents_and_temperatures_nrt() {
             // learn again
             if (vm.hammer[h].freq_wanted >= (ASIC_FREQ)(MINIMAL_ASIC_FREQ+2)) {
               vm.hammer[h].freq_wanted = (ASIC_FREQ)(vm.hammer[h].freq_wanted-2);
+              vm.needs_scaling = 1;
             }
           }
        }
@@ -965,14 +964,15 @@ void once_33_msec_pll_rt() {
   //squid_wait_hammer_reads();
 }
 #endif  // Change ALL PLLS at once
-
-/*  
+  
 void update_plls_a() {
   int i;
+  static int mememe = 0;
+  mememe++;
   //printf("Set pll A\n");
   for (i = 0; i < HAMMERS_COUNT; i++) {
     if (vm.hammer[i].asic_present &&
-         ((vm.hammer[i].freq_wanted != vm.hammer[i].freq_hw)) ) {
+         ((vm.hammer[i].freq_wanted != vm.hammer[i].freq_hw)) /*|| ((mememe%HAMMERS_COUNT) == i)*/) {
       disable_engines_asic(i);
       //printf("Set pll %x %d to %d\n",i,vm.hammer[i].freq_hw,vm.hammer[i].freq_wanted);
       set_pll(i, vm.hammer[i].freq_wanted);
@@ -994,12 +994,13 @@ void update_plls_b() {
     }
   }
 }
-*/
 
-void once_33_msec_temp_rt() {
+void once_26_msec_temp_rt() {
   static uint32_t intr_reg=0;
   static int measure_temp_addr = 0;
-  static uint32_t win_reg =0;
+  uint32_t win_reg =0;
+
+#if 0   
   if (vm.hammer[pll_set_addr].asic_present && 
       vm.hammer[pll_set_addr].pll_waiting_reply) {
     enable_engines_asic(vm.hammer[pll_set_addr].address, vm.hammer[pll_set_addr].working_engines);
@@ -1009,11 +1010,11 @@ void once_33_msec_temp_rt() {
 
  
 
-   // find next PLL
+   // find next PLL   
    pll_set_addr = (pll_set_addr+1)%HAMMERS_COUNT;
-   for (int i = 0 ; i < 10 ; i++) {
+   for (int i = 0 ; i < 20 ; i++) {
      if (!vm.hammer[pll_set_addr].asic_present ||
-        (vm.hammer[pll_set_addr].freq_wanted == vm.hammer[pll_set_addr].freq_hw)) {
+         (vm.hammer[pll_set_addr].freq_wanted == vm.hammer[pll_set_addr].freq_hw)) {
        pll_set_addr = (pll_set_addr+1)%HAMMERS_COUNT;
      } else {
        break;
@@ -1021,7 +1022,7 @@ void once_33_msec_temp_rt() {
    }
    
 
-   // prepare next PLL - start pll change
+   // prepare next PLL - start pll change  
    if (vm.hammer[pll_set_addr].asic_present && 
        (vm.hammer[pll_set_addr].freq_wanted != vm.hammer[pll_set_addr].freq_hw)) {
      disable_engines_asic(pll_set_addr);
@@ -1032,24 +1033,27 @@ void once_33_msec_temp_rt() {
      write_reg_device(pll_set_addr, ADDR_CONTROL_SET1, BIT_CTRL_DISABLE_TX);
      vm.hammer[pll_set_addr].pll_waiting_reply = true;
    }
-  
+#endif  
   push_hammer_read(BROADCAST_ADDR, ADDR_BR_WIN, &win_reg);
 
+#if 1
   measure_temp_addr = (measure_temp_addr+1)%HAMMERS_COUNT;
   if(vm.hammer[measure_temp_addr].asic_present) {
     set_temp_reading_rt( measure_temp_addr, &intr_reg); 
   }
+#endif  
   
 //-------------------------------
  squid_wait_hammer_reads();
 //-------------------------------
 
+#if 1
   // Update temperature.
   if (vm.hammer[measure_temp_addr].asic_present) {
       // will be NULL on first run, not a problem
       proccess_temp_reading_rt(&vm.hammer[measure_temp_addr], intr_reg);
   } 
-
+#endif
 
 // read last time...
   while (win_reg) {
@@ -1062,21 +1066,11 @@ void once_33_msec_temp_rt() {
        //printf("WON:%x\n", winner_device);
        win_reg = get_print_win(winner_device);
        //end_stopper(&tv,"WIN STOPPER");
+       push_job_to_hw_rt();
   }
 
 }
 
-
-
-void once_33_msec_tasks_rt() {
-  static int counter = 0;
-
-
- // static uint32_t pll_reg=0;  
-  if (++counter % 30 == 0) {
-    once_second_tasks_rt();
-  } 
-}
 
 
 
@@ -1088,14 +1082,17 @@ void push_job_to_hw_rt() {
     // Update leading zeroes?
     vm.not_mining_time = 0;
     if (work.leading_zeroes != vm.cur_leading_zeroes) {
-      vm.cur_leading_zeroes = work.leading_zeroes;
+      vm.cur_leading_zeroes = work.leading_zeroes;      
       write_reg_broadcast(ADDR_WIN_LEADING_0, vm.cur_leading_zeroes);
     }
     //flush_spi_write();
+#if 1
     if (work.ntime_offset) {
+      //work.ntime_offset++;
       work.timestamp = ntohl(ntohl(work.timestamp) + work.ntime_offset);  
       //work.timestamp += work.ntime_offset;
     }
+#endif     
     actual_work = add_to_sw_rt_queue(&work);
     // write_reg_device(0, ADDR_CURRENT_NONCE_START, rand() + rand()<<16);
     // write_reg_device(0, ADDR_CURRENT_NONCE_START + 1, rand() + rand()<<16);
@@ -1136,20 +1133,79 @@ void save_rate_temp(int back_tmp, int front_tmp, int total_mhash) {
     fclose(f);
 }
 
+void wait_dll_ready() {
+   int dll;
+   int i = 0;
+   do {
+     i++;
+     dll = read_reg_broadcast(ADDR_BR_PLL_NOT_READY);
+   } while (dll != 0 && (i < 200));
+
+   //printf("DLL i=%d\n",i);
+}
 
 
 // 666 times a second
-void once_1650_usec_tasks_rt() {
+void once_2000_usec_tasks_rt() {
   static int counter = 0;
   //start_stopper(&tv);
   static uint32_t idle=0;
   counter++;
 
   //squid_wait_hammer_reads();
+  // Enable for debug.
+  push_hammer_read(BROADCAST_ADDR, ADDR_BR_CONDUCTOR_IDLE, &idle);
 
-  if (counter%71==0) {  
-    idle = read_reg_broadcast(ADDR_BR_CONDUCTOR_IDLE);
-    if (idle) {
+  
+  //static int fifo_empty; 
+  //read_reg_broadcast(ADDR_BR_FIFO_EMPTY);
+  //push_hammer_read(BROADCAST_ADDR, ADDR_BR_FIFO_EMPTY, &fifo_empty);
+  if (!vm.asics_shut_down_powersave /*&& (fifo_empty)*/) {
+    push_job_to_hw_rt();
+  }
+
+
+  if (counter % (500) == 0) {
+    //struct timeval tv;     
+    //start_stopper(&tv);
+    once_second_tasks_rt();
+    //end_stopper(&tv,"A");
+    push_job_to_hw_rt();
+
+    // Push one more job!
+  }
+
+  if (counter % 13 == 10) {
+    struct timeval tv;     
+    once_26_msec_temp_rt();
+  }
+
+  // The PLL like to lock slowly
+#if 0  
+  if ((counter % 1000 == 3) || 
+    
+  }
+#endif
+  
+  if (((counter % 500 == 20) && vm.needs_scaling) || 
+     (vm.last_bist_state_machine == BIST_SM_CHANGE_FREQ1)) {
+     //struct timeval tv;     
+     //start_stopper(&tv);
+     update_plls_a();
+     if (vm.last_bist_state_machine == BIST_SM_CHANGE_FREQ1) {
+       vm.last_bist_state_machine = BIST_SM_DO_BIST_AGAIN;
+     }
+     push_job_to_hw_rt();     
+     wait_dll_ready();
+     push_job_to_hw_rt();
+     update_plls_b();
+     //end_stopper(&tv,"PLL Update B");
+     push_job_to_hw_rt();
+     vm.needs_scaling = 0;
+  }
+   // Enable for debug.
+   squid_wait_hammer_reads();
+   if (idle) {
       if (BROADCAST_READ_ADDR(idle) != pll_set_addr) {
         vm.idle_probs++;
       } else if (vm.cosecutive_jobs) {
@@ -1158,45 +1214,6 @@ void once_1650_usec_tasks_rt() {
     } else {
       vm.busy_probs++;
     }
-  }
-
-  if (!vm.asics_shut_down_powersave) {
-    push_job_to_hw_rt();
-  }
-
-
-  if (counter % 20 == 0) {
-    once_33_msec_tasks_rt();
-    push_job_to_hw_rt();    
-    // Push one more job!
-  }
-
-  if (counter % 20 == 10) {
-    once_33_msec_temp_rt();
-    push_job_to_hw_rt();
-  }
-
-/*
-  // The PLL like to lock slowly
-  if ((counter % 1000 == 3) || 
-      (vm.last_bist_state_machine == BIST_SM_CHANGE_FREQ2)) {
-      //wait_dll_ready();
-      update_plls_b();
-      if (vm.last_bist_state_machine == BIST_SM_CHANGE_FREQ2) {
-        vm.last_bist_state_machine = BIST_SM_DO_BIST_AGAIN;
-      }
-  }
-
-  
-  if ((counter % 1000 == 1) ||
-     (vm.last_bist_state_machine == BIST_SM_CHANGE_FREQ1)) {
-     update_plls_a();
-     if (vm.last_bist_state_machine == BIST_SM_CHANGE_FREQ1) {
-       vm.last_bist_state_machine = BIST_SM_CHANGE_FREQ2;
-     }
-  }
- */
-  
  
   //end_stopper(&tv,"3x3x");
 }
@@ -1226,6 +1243,32 @@ void *i2c_state_machine_nrt(void *p) {
       if (((counter%12)==0)) {
            leds_periodic_quater_second();
       }
+
+/*
+       if(vm.last_win.winner_nonce) {
+         static unsigned char hash[32];
+         compute_hash((const unsigned char*)vm.last_win.midstate,
+                       SWAP32(vm.last_win.mrkle_root),
+                       SWAP32(vm.last_win.timestamp),
+                       SWAP32(vm.last_win.difficulty),
+                       SWAP32(vm.last_win.winner_nonce),
+                       hash);
+        int leading_zeroes = get_leading_zeroes(hash);    
+        int winner_device = vm.last_win.winner_device;
+        if (leading_zeroes < 30) {
+           psyslog("!!!!!! FP on %d[%d] loop %d (Lz=%x)\n", 
+                    winner_device,vm.last_win.winner_engine, winner_device/HAMMERS_PER_LOOP, leading_zeroes);
+           vm.false_positives_total++;
+           // down ASICTreat it like failed BIST
+           vm.hammer[winner_device].passed_last_bist_engines &= 0x7EFE;
+        } else if (leading_zeroes < vm.cur_leading_zeroes) {
+        } else {
+        }
+        vm.last_win.winner_nonce  = 0;
+        vm.last_win.winner_device = 0;
+      }
+      */
+
 
     }
 
@@ -1350,11 +1393,12 @@ void *squid_regular_state_machine_rt(void *p) {
   vm.not_mining_time = 0;
   unpause_all_mining_engines();
   pause_all_mining_engines();
-  
+  /*
   static struct sched_param param;
   param.sched_priority = sched_get_priority_max(SCHED_RR);
   int r = sched_setscheduler(0, SCHED_RR, &param);
   passert(r==0);
+  */  
 
 /*
   while(1) {
@@ -1381,7 +1425,16 @@ void *squid_regular_state_machine_rt(void *p) {
       // new job every 1.5 msecs = 660 per second
       pthread_mutex_lock(&hammer_mutex);
       //start_stopper(&tv);
-      once_1650_usec_tasks_rt();
+
+      static int fifo_empty = 1; 
+      //struct timeval  tv;
+      //start_stopper(&tv);
+      //fifo_empty = read_reg_broadcast(ADDR_BR_FIFO_EMPTY);
+      //end_stopper(&tv,"RRR");
+      //push_hammer_read(BROADCAST_ADDR, ADDR_BR_FIFO_EMPTY, &fifo_empty);
+      if (fifo_empty) {
+        once_2000_usec_tasks_rt();
+      }
       //end_stopper(&tv,"WHOOOOOOOOOOOOLE 1500 TIMER");
       pthread_mutex_unlock(&hammer_mutex);
 

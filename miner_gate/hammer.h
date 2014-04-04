@@ -297,6 +297,19 @@ typedef struct {
   int power_throttled;
 } LOOP;
 
+
+typedef struct {
+  uint32_t winner_device;    
+  uint32_t winner_nonce;
+  uint32_t winner_engine;  
+  uint32_t winner_id;
+  uint32_t mrkle_root;
+  uint32_t timestamp;
+  uint32_t difficulty;
+  uint32_t midstate[8];
+} WIN;  
+
+
 // Global data
 #define BIST_SM_NADA          0
 #define BIST_SM_DO_SCALING    1
@@ -359,15 +372,14 @@ typedef struct {
   bool vmargin_start;
   int vtrim_max;
   int max_ac2dc_power; 
-  
   int last_second_jobs;
   int cur_leading_zeroes;
   // We give less LZ then needed to do faster scaling.
-  //int cur_hw_leading_zeroes;
 
   // When system just started, search optimal speed agressively
 
-
+  int needs_scaling;
+  
   // our ASIC data
   HAMMER hammer[HAMMERS_COUNT];
   //uint32_t working_engines[HAMMERS_COUNT];
@@ -377,11 +389,13 @@ typedef struct {
   LOOP loop[LOOP_COUNT];
   uint32_t loop_vtrim[LOOP_COUNT];
   bool loop_margin_low[LOOP_COUNT];  
+
+  WIN last_win;  
 } MINER_BOX;
 
 extern MINER_BOX vm;
 
 
-#define JOB_PUSH_PERIOD_US (1650)
+#define JOB_PUSH_PERIOD_US (2000)
 
 #endif

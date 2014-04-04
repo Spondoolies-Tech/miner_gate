@@ -39,9 +39,12 @@
 #include <pthread.h>
 
 static int now;
-static int proccess_bist_results = 0;
 
-
+int SWAP32(int x);
+void compute_hash(const unsigned char *midstate, unsigned int mrkle_root,
+                  unsigned int timestamp, unsigned int difficulty,
+                  unsigned int winner_nonce, unsigned char *hash);
+int get_leading_zeroes(const unsigned char *hash);
 
 // returns worst asic
 //  Any ASIC is worth then NULL
@@ -131,6 +134,7 @@ void asic_up(HAMMER *a) {
 //   vm.loop[a->loop_address].dc2dc.dc_current_16s_arr[2] += 4;
 //   vm.loop[a->loop_address].dc2dc.dc_current_16s_arr[3] += 4;
    vm.ac2dc_power++;
+   vm.needs_scaling = 1;
 }
 
 
@@ -154,6 +158,7 @@ void asic_down_completly(HAMMER *a) {
    vm.loop[a->loop_address].dc2dc.dc_current_16s_arr[1] -= fdiff;
    vm.loop[a->loop_address].dc2dc.dc_current_16s_arr[2] -= fdiff;
 */
+  vm.needs_scaling = 1;
 
    
 }
@@ -176,7 +181,8 @@ void asic_up_fast(HAMMER *a) {
 
    
    //set_pll(a->address, wanted_freq);        
-   a->last_freq_change_time = now;    
+   a->last_freq_change_time = now;  
+   vm.needs_scaling = 1;
 }
 
 
@@ -196,6 +202,7 @@ void asic_down(HAMMER *a, int down) {
    vm.loop[a->loop_address].dc2dc.dc_current_16s_arr[2] -= 3;
    vm.loop[a->loop_address].dc2dc.dc_current_16s_arr[3] -= 3;
   */
+     vm.needs_scaling = 1;
 }
 
 
@@ -274,24 +281,28 @@ void do_bist_fix_loops_rt() {
   counter++; 
   int failed;
   
-  if (!vm.asics_shut_down_powersave) { 
+  if (!vm.asics_shut_down_powersave && vm.last_bist_state_machine != BIST_SM_CHANGE_FREQ2) { 
       int uptime = time(NULL) - vm.start_mine_time;
-      if (((counter % BIST_PERIOD_SECS) == 0) ||
+      if (
+          ((counter % BIST_PERIOD_SECS) == 0) ||
+           (vm.last_bist_state_machine == BIST_SM_DO_BIST_AGAIN) ||
            (
              (uptime < AGRESSIVE_BIST_PERIOD_UPTIME_SECS) &&
              ((counter % AGRESSIVE_BIST_PERIOD_SECS) == 0)
            )
           ){
-        printf(MAGENTA "Running BIST, uptime = %d\n" RESET, uptime);
-
+       
          struct timeval tv; 
          start_stopper(&tv);
-         failed = do_bist_ok_rt(1);      
-         end_stopper(&tv,"BIST");
-         psyslog( "BBist failed %d times\n" , failed);
+         failed = do_bist_ok_rt(0);
+         psyslog( "Bist failed %d, uptime %d, sm %d\n" , 
+                  failed,uptime,vm.last_bist_state_machine);
          if (failed) {
-           proccess_bist_results = 1;
+            vm.last_bist_state_machine = BIST_SM_DO_SCALING;
+         } else {
+            vm.last_bist_state_machine = BIST_SM_NADA;
          }
+         end_stopper(&tv,"BIST");
       }
   }
 }
@@ -306,6 +317,9 @@ void maybe_change_freqs_nrt() {
    vm.dc2dc_total_power = 0;
    vm.total_mhash = 0;
    int critical_downscale = 0;
+
+
+
   
    // Remove disabled loops and pdate statistics
    for (int l = 0 ; l < LOOP_COUNT ; l++) {
@@ -332,7 +346,7 @@ void maybe_change_freqs_nrt() {
        vm.loop[l].power_throttled = 0;
        for (int i = 0 ; i < HAMMERS_PER_LOOP ; i++) {
          HAMMER* h = &vm.hammer[l*HAMMERS_PER_LOOP+i];
-         if (h->asic_present) {       
+         if (h->asic_present) {
            if (h->asic_temp >= MAX_ASIC_TEMPERATURE && 
                h->freq_wanted > MINIMAL_ASIC_FREQ &&
                (now - h->last_down_freq_change_time) > 20) {
@@ -359,13 +373,16 @@ void maybe_change_freqs_nrt() {
    counter++;
    // Run every XX seconds
    if (((counter%15) == 0) ||
-       proccess_bist_results ||
-       critical_downscale ||
+       (vm.last_bist_state_machine == BIST_SM_DO_SCALING) ||
+       critical_downscale  ||
        (vm.ac2dc_power > vm.max_ac2dc_power)) {
-           printf(MAGENTA "Running FREQ update\n" RESET);
+           //printf(MAGENTA "Running FREQ update\n" RESET);
            //!!!  HERE WE DO FREQUENCY UPDATES!!!
            asic_frequency_update_nrt();
-           proccess_bist_results = 0;
+           // Signal that we wait for ASICs to set freq
+           if (vm.last_bist_state_machine == BIST_SM_DO_SCALING) {
+              vm.last_bist_state_machine = BIST_SM_CHANGE_FREQ1;
+           }
            // Dont run for next 7 seconds.
        }
 }
@@ -413,7 +430,7 @@ void asic_frequency_update_nrt(int verbal) {
         // This must be first!! We must have real data here.
         int passed = h->passed_last_bist_engines;        
         if ((passed != ALL_ENGINES_BITMASK)) {
-          vm.loop[h->loop_address].asics_failing_bist=1;
+          vm.loop[h->loop_address].asics_failing_bist = 1;
           int failed_engines_mask = passed ^ ALL_ENGINES_BITMASK;
           cnt++;
           // It's not only thermaly punished, it's failing bist
@@ -438,6 +455,7 @@ void asic_frequency_update_nrt(int verbal) {
               h->freq_thermal_limit= MAX_ASIC_FREQ;
               h->freq_wanted = (ASIC_FREQ)(MINIMAL_ASIC_FREQ+1);
               h->agressivly_scale_up = 1;
+              vm.needs_scaling = 1;
             }
           }
      

@@ -26,6 +26,7 @@
 #include <spond_debug.h>
 #include "hammer_lib.h"
 #include "corner_discovery.h"
+#include "sched.h"
 
 #define ARRAY_SIZE(a) (sizeof(a) / sizeof((a)[0]))
 #define BROADCAST_ADDR 0xffff
@@ -351,9 +352,10 @@ int wait_rx_queue_ready() {
   int loops = 0;
   uint32_t q_status = read_spi(ADDR_SQUID_STATUS);
   // printf("Q STATUS:%x \n", q_status);
-  while ((++loops < 500) &&
+  while ((++loops < 50) &&
          ((q_status & BIT_STATUS_SERIAL_Q_RX_NOT_EMPTY) == 0)) {
-    usleep(1);
+    //usleep(1);
+	sched_yield();   
     q_status = read_spi(ADDR_SQUID_STATUS);
   }
   return ((q_status & BIT_STATUS_SERIAL_Q_RX_NOT_EMPTY) != 0);
@@ -363,7 +365,6 @@ uint32_t _read_reg_actual(uint32_t address, uint32_t offset) {
   // uint32_t d1, d2;
   // printf("-!-read SERIAL: %x %x\n",d1,d2);
   int success = wait_rx_queue_ready();
-
   if (!success) {
     // TODO  - handle timeout?
     if (assert_serial_failures) {
@@ -458,7 +459,7 @@ void squid_wait_hammer_reads() {
       reset_hammer_queue();
       break;
     }
-	//usleep(40);
+	//usleep(50);
   }
 
   return;

@@ -68,6 +68,8 @@ void loop_down(int l) {
         */
       }
    }
+   vm.needs_scaling = 1;
+   vm.last_bist_state_machine = BIST_SM_DO_SCALING;
 }
 
 
@@ -98,11 +100,13 @@ void loop_up(int l) {
           // if its termal, dont change it.
           if (vm.hammer[h].freq_bist_limit == vm.hammer[h].freq_thermal_limit) {
             vm.hammer[h].freq_thermal_limit = vm.hammer[h].freq_bist_limit = 
-              (vm.hammer[h].freq_bist_limit < ASIC_FREQ_MAX-1)?((ASIC_FREQ)(vm.hammer[h].freq_bist_limit+1)):ASIC_FREQ_MAX; 
+              (vm.hammer[h].freq_bist_limit < ASIC_FREQ_MAX-2)?((ASIC_FREQ)(vm.hammer[h].freq_bist_limit+2)):ASIC_FREQ_MAX; 
           }
           vm.hammer[h].agressivly_scale_up = true;
         } 
     }
+   vm.last_bist_state_machine = BIST_SM_DO_SCALING;
+   vm.needs_scaling = 1;
 }
 
 
@@ -311,4 +315,4 @@ void ac2dc_scaling() {
   }
 }
 
-
+  

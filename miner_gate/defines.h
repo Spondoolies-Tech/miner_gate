@@ -38,7 +38,7 @@
 #define MIN_COSECUTIVE_JOBS_FOR_DC2DC_MEASUREMENT MIN_COSECUTIVE_JOBS_FOR_SCALING
 
 // In seconds
-#define BIST_PERIOD_SECS                              30 
+#define BIST_PERIOD_SECS                              15 
 #define AGRESSIVE_BIST_PERIOD_SECS                    15
 #define AGRESSIVE_BIST_PERIOD_UPTIME_SECS         (60*20)
 
@@ -103,7 +103,7 @@
 #define FAN_QUIET 50
 
 
-#define MAX_LEADING_ZEROES 40
+#define MAX_LEADING_ZEROES 50
 
 //#define CORNER_DISCOVERY_FREQ_SS       ASIC_FREQ_480 // all less
 
