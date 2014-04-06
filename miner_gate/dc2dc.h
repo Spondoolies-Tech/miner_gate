@@ -61,7 +61,8 @@ void dc2dc_enable_dc2dc(int loop, int *err);
 void dc2dc_init();
 void dc2dc_init_loop(int loop);
 
-int dc2dc_get_current_16s_of_amper(int loop, int* overcurrent_err, uint8_t *temp ,int *err);
+int dc2dc_get_current_16s_of_amper(int loop, int* overcurrent_err, int* overcurrent_warning ,uint8_t *temp ,int *err);
+
 
 int update_dc2dc_current_temp_measurments(int loop, int* overcurrent_err,  int* overcurrent_warning);
 

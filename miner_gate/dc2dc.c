@@ -179,7 +179,9 @@ static void dc2dc_select_i2c(int loop, int *err) { // 1 or 0
 
 void dc2dc_set_vtrim(int loop, uint32_t vtrim, bool vmargin_75low  , int *err) {
 
+#ifdef MINERGATE
   passert(vtrim >= VTRIM_MIN && vtrim <= vm.vtrim_max);
+#endif
 
 #ifndef __MBTEST__
 	  printf("Set VOLTAGE Loop %d Milli:%d Vtrim:%x\n",loop, VTRIM_TO_VOLTAGE_MILLI(vtrim, vm.vmargin_start),vtrim);
