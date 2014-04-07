@@ -180,6 +180,12 @@ int main(int argc, char *argv[])
 	if ( 0 == strcmp(argv[i],"-h"))
 	  callUsage = true;
 
+	else if ( 0 == strcmp(argv[i],"-both")){
+	  if (topOrBottom == -1 || topOrBottom == BOTH_MAIN_BOARDS)
+		  topOrBottom = BOTH_MAIN_BOARDS;
+	  else
+		  badParm = true;
+	}
 	else if ( 0 == strcmp(argv[i],"-top")){
 	  if (topOrBottom == -1 || topOrBottom == TOP_BOARD)
 		  topOrBottom = TOP_BOARD;
@@ -267,15 +273,16 @@ int main(int argc, char *argv[])
 	if (failedloops > 0){
 		formatBadLoopsString(failedloops , badloopsformattedstring);
 		printf ("TEST-FAIL SET VOLTAGE %d - %d groups failed (%s)\n" ,VTRIM_TO_VOLTAGE_MILLI(VTRIM_MIN,0), count_bits(failedloops) , badloopsformattedstring);
+	}else{
+		usleep(200000);
+		failedloops = GetLoopVoltage(VTRIM_TO_VOLTAGE_MILLI(VTRIM_MIN,0));
+		if (failedloops > 0){
+			formatBadLoopsString(failedloops , badloopsformattedstring);
+			printf ("TEST-FAIL SET VOLTAGE %d - %d groups failed (%s)\n" ,VTRIM_TO_VOLTAGE_MILLI(VTRIM_MIN,0), count_bits(failedloops) , badloopsformattedstring);
+		}
+		else
+			printf ("TEST-PASS SET VOLTAGE %d\n" ,VTRIM_TO_VOLTAGE_MILLI(VTRIM_MIN,0));
 	}
-	usleep(200000);
-	failedloops = GetLoopVoltage(VTRIM_TO_VOLTAGE_MILLI(VTRIM_MIN,0));
-	if (failedloops > 0){
-		formatBadLoopsString(failedloops , badloopsformattedstring);
-		printf ("TEST-FAIL SET VOLTAGE %d - %d groups failed (%s)\n" ,VTRIM_TO_VOLTAGE_MILLI(VTRIM_MIN,0), count_bits(failedloops) , badloopsformattedstring);
-	}
-	else
-		printf ("TEST-PASS SET VOLTAGE %d\n" ,VTRIM_TO_VOLTAGE_MILLI(VTRIM_MIN,0));
 	printf ("-----------------------------------------------\n\n");
 
 
@@ -284,15 +291,16 @@ int main(int argc, char *argv[])
 	if (failedloops > 0){
 		formatBadLoopsString(failedloops , badloopsformattedstring);
 		printf ("TEST-FAIL SET VOLTAGE %d - %d groups failed (%s)\n" ,VTRIM_TO_VOLTAGE_MILLI(VTRIM_HIGH,0), count_bits(failedloops) , badloopsformattedstring);
+	}else{
+		usleep(200000);
+		failedloops = GetLoopVoltage(VTRIM_TO_VOLTAGE_MILLI(VTRIM_HIGH,0));
+		if (failedloops > 0){
+			formatBadLoopsString(failedloops , badloopsformattedstring);
+			printf ("TEST-FAIL SET VOLTAGE %d - %d groups failed (%s)\n" ,VTRIM_TO_VOLTAGE_MILLI(VTRIM_HIGH,0), count_bits(failedloops) , badloopsformattedstring);
+		}
+		else
+			printf ("TEST-PASS SET VOLTAGE %d\n" ,VTRIM_TO_VOLTAGE_MILLI(VTRIM_HIGH,0));
 	}
-	usleep(200000);
-	failedloops = GetLoopVoltage(VTRIM_TO_VOLTAGE_MILLI(VTRIM_HIGH,0));
-	if (failedloops > 0){
-		formatBadLoopsString(failedloops , badloopsformattedstring);
-		printf ("TEST-FAIL SET VOLTAGE %d - %d groups failed (%s)\n" ,VTRIM_TO_VOLTAGE_MILLI(VTRIM_HIGH,0), count_bits(failedloops) , badloopsformattedstring);
-	}
-	else
-		printf ("TEST-PASS SET VOLTAGE %d\n" ,VTRIM_TO_VOLTAGE_MILLI(VTRIM_HIGH,0));
 	printf ("-----------------------------------------------\n\n");
 
 	printf ("+============  SET VOLTAGE %d ===============\n", VTRIM_TO_VOLTAGE_MILLI(VTRIM_MEDIUM,0));
@@ -300,26 +308,27 @@ int main(int argc, char *argv[])
 	if (failedloops > 0){
 		formatBadLoopsString(failedloops , badloopsformattedstring);
 		printf ("TEST-FAIL SET VOLTAGE %d - %d groups failed (%s)\n" ,VTRIM_TO_VOLTAGE_MILLI(VTRIM_MEDIUM,0), count_bits(failedloops) , badloopsformattedstring);
+	}else{
+		usleep(200000);
+		failedloops = GetLoopVoltage(VTRIM_TO_VOLTAGE_MILLI(VTRIM_MEDIUM,0));
+		if (failedloops > 0){
+			formatBadLoopsString(failedloops , badloopsformattedstring);
+			printf ("TEST-FAIL SET VOLTAGE %d - %d groups failed (%s)\n" ,VTRIM_TO_VOLTAGE_MILLI(VTRIM_MEDIUM,0), count_bits(failedloops) , badloopsformattedstring);
+		}
+		else
+			printf ("TEST-PASS SET VOLTAGE %d\n" ,VTRIM_TO_VOLTAGE_MILLI(VTRIM_MEDIUM,0));
 	}
-	usleep(200000);
-	failedloops = GetLoopVoltage(VTRIM_TO_VOLTAGE_MILLI(VTRIM_MEDIUM + 20,0));
-	if (failedloops > 0){
-		formatBadLoopsString(failedloops , badloopsformattedstring);
-		printf ("TEST-FAIL SET VOLTAGE %d - %d groups failed (%s)\n" ,VTRIM_TO_VOLTAGE_MILLI(VTRIM_MEDIUM,0), count_bits(failedloops) , badloopsformattedstring);
-	}
-	else
-		printf ("TEST-PASS SET VOLTAGE %d\n" ,VTRIM_TO_VOLTAGE_MILLI(VTRIM_MEDIUM,0));
 	printf ("-----------------------------------------------\n\n");
 
-	printf ("+============  GET DC2DC TEMP ===============\n", VTRIM_TO_VOLTAGE_MILLI(VTRIM_MEDIUM,0));
-	failedloops = GetLoopsTemp();
-	if (failedloops > 0){
-		formatBadLoopsString(failedloops , badloopsformattedstring);
-		printf ("TEST-FAIL GET DC2DC TEMP - %d groups failed (%s)\n" , count_bits(failedloops) , badloopsformattedstring);
-	}
-	else
-		printf ("TEST-PASS GET DC2DC TEMP\n");
-	printf ("-----------------------------------------------\n\n");
+//	printf ("+============  GET DC2DC TEMP ===============\n", VTRIM_TO_VOLTAGE_MILLI(VTRIM_MEDIUM,0));
+//	failedloops = GetLoopsTemp();
+//	if (failedloops > 0){
+//		formatBadLoopsString(failedloops , badloopsformattedstring);
+//		printf ("TEST-FAIL GET DC2DC TEMP - %d groups failed (%s)\n" , count_bits(failedloops) , badloopsformattedstring);
+//	}
+//	else
+//		printf ("TEST-PASS GET DC2DC TEMP\n");
+//	printf ("-----------------------------------------------\n\n");
 
 
 //	if (do_bist_ok_rt(0)){
