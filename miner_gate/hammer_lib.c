@@ -1149,13 +1149,16 @@ void wait_dll_ready() {
 void once_2000_usec_tasks_rt() {
   static int counter = 0;
   //start_stopper(&tv);
+#if COUNT_IDLES    
   static uint32_t idle=0;
+#endif
   counter++;
 
   //squid_wait_hammer_reads();
   // Enable for debug.
+#if COUNT_IDLES  
   push_hammer_read(BROADCAST_ADDR, ADDR_BR_CONDUCTOR_IDLE, &idle);
-
+#endif
   
   //static int fifo_empty; 
   //read_reg_broadcast(ADDR_BR_FIFO_EMPTY);
@@ -1205,6 +1208,7 @@ void once_2000_usec_tasks_rt() {
   }
    // Enable for debug.
    squid_wait_hammer_reads();
+#if COUNT_IDLES     
    if (idle) {
       if (BROADCAST_READ_ADDR(idle) != pll_set_addr) {
         vm.idle_probs++;
@@ -1214,7 +1218,7 @@ void once_2000_usec_tasks_rt() {
     } else {
       vm.busy_probs++;
     }
- 
+#endif 
   //end_stopper(&tv,"3x3x");
 }
 

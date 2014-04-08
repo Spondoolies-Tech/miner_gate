@@ -23,7 +23,7 @@
 #include <netinet/in.h>
 
 
-#define MINERGATE_PROTOCOL_VERSION 4
+#define MINERGATE_PROTOCOL_VERSION 5
 #define MINERGATE_SOCKET_FILE "/tmp/connection_pipe"
 
 typedef enum {
@@ -64,7 +64,7 @@ typedef struct {
   uint8_t requester_id;
   uint8_t request_id;
   uint8_t protocol_version;
-  uint8_t resrved1; 
+  uint8_t mask; // 0x01 = first request, 0x02 = drop old work
   uint16_t magic;   // 0xcaf4
   uint16_t req_count;
   minergate_do_job_req req[MAX_REQUESTS]; // array of requests

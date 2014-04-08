@@ -84,7 +84,7 @@
 #define VTRIM_ML_555   0xFFC4
 
 
-
+#define COUNT_IDLES 1
 #define VTRIM_HIGH  0x0FFef
 
 #define VTRIM_START_TURBO (VTRIM_664) //0x0FFd0//VTRIM_MIN//(0x0FFd0+10)//VTRIM_MIN //(0x0FFd2-7)//(0x0FFd2-0xf)

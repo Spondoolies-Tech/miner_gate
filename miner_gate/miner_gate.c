@@ -85,7 +85,7 @@ public:
   void minergate_adapter() {}
 } minergate_adapter;
 
-minergate_adapter *adapters[0x100] = { 0 };
+minergate_adapter *adapter = NULL;
 int kill_app = 0;
 
 
@@ -203,7 +203,7 @@ static void sighandler(int sig)
 
 
 void print_adapter(FILE *f ) {
-  minergate_adapter *a = adapters[0];
+  minergate_adapter *a = adapter;
   if (a) {
     fprintf(f, "Adapter queues: rsp=%d, req=%d\n", 
             a->work_minergate_rsp.size(),
@@ -213,11 +213,11 @@ void print_adapter(FILE *f ) {
   }
 }
 
-void free_minergate_adapter(minergate_adapter *adapter) {
-  close(adapter->connection_fd);
-  free(adapter->last_req);
-  free(adapter->next_rsp);
-  delete adapter;
+void free_minergate_adapter(minergate_adapter *a) {
+  close(a->connection_fd);
+  free(a->last_req);
+  free(a->next_rsp);
+  delete a;
 }
 
 int SWAP32(int x) {
@@ -232,8 +232,8 @@ void push_work_rsp(RT_JOB *work) {
   pthread_mutex_lock(&network_hw_mutex);
   minergate_do_job_rsp r;
   uint8_t adapter_id = work->adapter_id;
-  minergate_adapter *adapter = adapters[adapter_id];
-  if (!adapter) {
+  minergate_adapter *a = adapter;
+  if (!a) {
     DBG(DBG_NET, "Adapter disconected! Packet to garbage\n");
     pthread_mutex_unlock(&network_hw_mutex);
     return;
@@ -243,25 +243,23 @@ void push_work_rsp(RT_JOB *work) {
   r.winner_nonce = work->winner_nonce;
   r.work_id_in_sw = work->work_id_in_sw;
   r.ntime_offset = work->ntime_offset;
-  //printf("ntime offset set to %d (%x)\n",r.ntime_offset, work->timestamp);
   r.res = 0;
-  adapter->work_minergate_rsp.push(r);
-  //passert(adapter->work_minergate_rsp.size() <= MINERGATE_TOTAL_QUEUE * 2);
+  a->work_minergate_rsp.push(r);
   pthread_mutex_unlock(&network_hw_mutex);
 }
 
 //
 // returns success, fills W with new job from adapter queue
 //
-int pull_work_req_adapter(RT_JOB *w, minergate_adapter *adapter) {
+int pull_work_req_adapter(RT_JOB *w, minergate_adapter *a) {
   minergate_do_job_req r;
 
-  if (!adapter->work_minergate_req.empty()) {
-    r = adapter->work_minergate_req.front();
-    adapter->work_minergate_req.pop();
+  if (!a->work_minergate_req.empty()) {
+    r = a->work_minergate_req.front();
+    a->work_minergate_req.pop();
     w->difficulty = r.difficulty;
     memcpy(w->midstate, r.midstate, sizeof(r.midstate));
-    w->adapter_id = adapter->adapter_id;
+    w->adapter_id = a->adapter_id;
     w->mrkle_root = r.mrkle_root;
     w->timestamp = r.timestamp;
     w->winner_nonce = 0;
@@ -270,26 +268,24 @@ int pull_work_req_adapter(RT_JOB *w, minergate_adapter *adapter) {
     w->leading_zeroes = r.leading_zeroes;
     w->ntime_max = r.ntime_limit;
     w->ntime_offset = r.ntime_offset;
-    //printf("Roll limit:%d\n",r.ntime_limit);
     return 1;
   }
   return 0;
 }
 
 // returns success
-int has_work_req_adapter(minergate_adapter *adapter) {
-  return (adapter->work_minergate_req.size());
+int has_work_req_adapter(minergate_adapter *a) {
+  return (a->work_minergate_req.size());
 }
 
 // returns success
 int pull_work_req(RT_JOB *w) {
   // go over adapters...
-  // TODO
   pthread_mutex_lock(&network_hw_mutex);
   int ret = false;
-  minergate_adapter *adapter = adapters[0];
-  if (adapter) {
-      ret =pull_work_req_adapter(w, adapter);
+  minergate_adapter *a = adapter;
+  if (a) {
+      ret =pull_work_req_adapter(w, a);
   }
   pthread_mutex_unlock(&network_hw_mutex);
   return ret;
@@ -297,16 +293,17 @@ int pull_work_req(RT_JOB *w) {
 
 int has_work_req() {
   pthread_mutex_lock(&network_hw_mutex);
-  minergate_adapter *adapter = adapters[0];
-  if (adapter) {
-    has_work_req_adapter(adapter);
+  minergate_adapter *a = adapter;
+  if (a) {
+    has_work_req_adapter(a);
   }
   pthread_mutex_unlock(&network_hw_mutex);
 }
 
-void push_work_req(minergate_do_job_req *req, minergate_adapter *adapter) {
+void push_work_req(minergate_do_job_req *req, minergate_adapter *a) {
   pthread_mutex_lock(&network_hw_mutex);
-  if (adapter->work_minergate_req.size() >= (MINERGATE_TOTAL_QUEUE - 10)) {
+#if 0
+  if (a->work_minergate_req.size() >= (MINERGATE_TOTAL_QUEUE - 10)) {
     minergate_do_job_rsp rsp;
     rsp.mrkle_root = req->mrkle_root;
     rsp.winner_nonce = 0;
@@ -314,19 +311,29 @@ void push_work_req(minergate_do_job_req *req, minergate_adapter *adapter) {
     rsp.work_id_in_sw = req->work_id_in_sw;
     rsp.res = 1;
     // printf("returning %d %d\n",req->work_id_in_sw,rsp.work_id_in_sw);
-    adapter->work_minergate_rsp.push(rsp);
+    a->work_minergate_rsp.push(rsp);
   } else {
-    adapter->work_minergate_req.push(*req);
+    a->work_minergate_req.push(*req); 
   }
+#else
+  if (a->work_minergate_req.size() >= (MINERGATE_TOTAL_QUEUE - 10)) {
+    RT_JOB w;
+    pthread_mutex_unlock(&network_hw_mutex);
+    pull_work_req(&w);
+    push_work_rsp(&w);
+    pthread_mutex_lock(&network_hw_mutex);   
+  }
+  a->work_minergate_req.push(*req); 
+#endif
   pthread_mutex_unlock(&network_hw_mutex);
 }
 
 // returns success
-int pull_work_rsp(minergate_do_job_rsp *r, minergate_adapter *adapter) {
+int pull_work_rsp(minergate_do_job_rsp *r, minergate_adapter *a) {
   pthread_mutex_lock(&network_hw_mutex);
-  if (!adapter->work_minergate_rsp.empty()) {
-    *r = adapter->work_minergate_rsp.front();
-    adapter->work_minergate_rsp.pop();
+  if (!a->work_minergate_rsp.empty()) {
+    *r = a->work_minergate_rsp.front();
+    a->work_minergate_rsp.pop();
     pthread_mutex_unlock(&network_hw_mutex);
     return 1;
   }
@@ -339,14 +346,12 @@ extern pthread_mutex_t hammer_mutex;
 //
 void *connection_handler_thread(void *adptr) {
   psyslog("New adapter connected!\n");
-  minergate_adapter *adapter = (minergate_adapter *)adptr;
-  // DBG(DBG_NET,"connection_fd = %d\n", adapter->connection_fd);
+  minergate_adapter *a = (minergate_adapter *)adptr;
+  // DBG(DBG_NET,"connection_fd = %d\n", a->connection_fd);
   set_light(LIGHT_GREEN, LIGHT_MODE_FAST_BLINK);
-
-  adapter->adapter_id = 0;
-  adapters[0] = adapter;
-  adapter->last_req = allocate_minergate_packet_req(0xca, 0xfe);
-  adapter->next_rsp = allocate_minergate_packet_rsp(0xca, 0xfe);
+  a->adapter_id = 0;
+  a->last_req = allocate_minergate_packet_req(0xca, 0xfe);
+  a->next_rsp = allocate_minergate_packet_rsp(0xca, 0xfe);
 
   vm.idle_probs = 0;
   vm.busy_probs = 0;
@@ -365,13 +370,13 @@ void *connection_handler_thread(void *adptr) {
   struct timeval last_time; 
   gettimeofday(&now, NULL);
   gettimeofday(&last_time, NULL);
-  while ((nbytes = read(adapter->connection_fd, (void *)adapter->last_req,
+  while ((nbytes = read(a->connection_fd, (void *)a->last_req,
                         sizeof(minergate_req_packet))) > 0) {
     struct timeval now;      
     struct timeval last_time; 
     int usec;
     if (nbytes) {
-      passert(adapter->last_req->magic == 0xcaf4);
+      passert(a->last_req->magic == 0xcaf4);
       gettimeofday(&now, NULL);
 
       usec = (now.tv_sec - last_time.tv_sec) * 1000000;
@@ -389,44 +394,53 @@ void *connection_handler_thread(void *adptr) {
       // Reset packet.
       int i;
       // Return all previous responces
-      int rsp_count = adapter->work_minergate_rsp.size();
+      int rsp_count = a->work_minergate_rsp.size();
       DBG(DBG_NET, "Sending %d minergate_do_job_rsp\n", rsp_count);
       if (rsp_count > MAX_RESPONDS) {
         rsp_count = MAX_RESPONDS;
       }
 
       for (i = 0; i < rsp_count; i++) {
-        minergate_do_job_rsp *rsp = adapter->next_rsp->rsp + i;
-        int res = pull_work_rsp(rsp, adapter);
+        minergate_do_job_rsp *rsp = a->next_rsp->rsp + i;
+        int res = pull_work_rsp(rsp, a);
         passert(res);
       }
-      adapter->next_rsp->rsp_count = rsp_count;
+      a->next_rsp->rsp_count = rsp_count;
       int mhashes_done = (vm.total_mhash>>10)*(usec>>10);
-      adapter->next_rsp->gh_div_10_rate = mhashes_done>>10;  
-
-      int array_size = adapter->last_req->req_count;
+      a->next_rsp->gh_div_10_rate = mhashes_done>>10;  
+      int array_size = a->last_req->req_count;
       for (i = 0; i < array_size; i++) { // walk the jobs
-        minergate_do_job_req *work = adapter->last_req->req + i;
-        push_work_req(work, adapter);
+        minergate_do_job_req *work = a->last_req->req + i;
+        push_work_req(work, a);
       }
 
-      // parse_minergate_packet(adapter->last_req, minergate_data_processor,
-      // adapter, adapter);
-      adapter->next_rsp->request_id = adapter->last_req->request_id;
+      if (a->last_req->mask & 0x02) {
+         // Drop old requests
+         psyslog("----- Drop old requests\n");
+         RT_JOB w;
+         while (pull_work_req(&w)) {
+           // Push to complete queue
+           push_work_rsp(&w);
+         }
+       }
+
+
+      // parse_minergate_packet(a->last_req, minergate_data_processor,
+      // a, a);
+      a->next_rsp->request_id = a->last_req->request_id;
       // Send response
-      write(adapter->connection_fd, (void *)adapter->next_rsp,
+      write(a->connection_fd, (void *)a->next_rsp,
             sizeof(minergate_rsp_packet));
 
       // Clear packet.
-      adapter->next_rsp->rsp_count = 0;
+      a->next_rsp->rsp_count = 0;
       last_time = now;
     }
   }
-  adapters[adapter->adapter_id] = NULL;  
+  free_minergate_adapter(a);  
+  adapter = NULL;  
   set_light(LIGHT_GREEN, LIGHT_MODE_SLOW_BLINK);
-  free_minergate_adapter(adapter);
   // Clear the real_time_queue from the old packets
-  adapter = NULL;
   return 0;
 }
 
@@ -720,17 +734,19 @@ int main(int argc, char *argv[]) {
   passert(s == 0);
 
 
-  minergate_adapter *adapter = new minergate_adapter;
+  adapter = new minergate_adapter;
   passert((int)adapter);
   while ((adapter->connection_fd =
               accept(socket_fd, (struct sockaddr *)&address, &address_length)) >
          -1) {
     // Only 1 thread supportd so far...
-    psyslog("New adapter connected %d %x!\n", adapter->connection_fd, adapter);
-    s = pthread_create(&adapter->conn_pth, NULL, connection_handler_thread,
-                       (void *)adapter);
+    psyslog("New a connected %d %x!\n", adapter->connection_fd, adapter);
+    connection_handler_thread((void *)adapter);
+    /*
+    s = pthread_create(&a->conn_pth, NULL, connection_handler_thread,
+                       (void *)a);
     passert(s == 0);
-
+    */
     adapter = new minergate_adapter;
     passert((int)adapter);
   }
