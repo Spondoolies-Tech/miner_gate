@@ -4,6 +4,8 @@
 
 #define BITS_IN_INT (sizeof(int)*8)
 
+#define VTRIM_MEDIUM (((VTRIM_HIGH) + (VTRIM_MIN))/2)
+
 inline int count_bits(int ii){
 	int r = 0 ;
 	int x = ii;
