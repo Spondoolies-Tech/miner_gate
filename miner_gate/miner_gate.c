@@ -302,7 +302,7 @@ int has_work_req() {
 
 void push_work_req(minergate_do_job_req *req, minergate_adapter *a) {
   pthread_mutex_lock(&network_hw_mutex);
-#if 0
+#if 1
   if (a->work_minergate_req.size() >= (MINERGATE_TOTAL_QUEUE - 10)) {
     minergate_do_job_rsp rsp;
     rsp.mrkle_root = req->mrkle_root;
