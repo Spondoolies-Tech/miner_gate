@@ -1168,7 +1168,7 @@ void once_2000_usec_tasks_rt() {
   }
 
 
-  if (counter % (606) == 0) {
+  if (counter % (500) == 0) {
     //struct timeval tv;     
     //start_stopper(&tv);
     once_second_tasks_rt();
@@ -1178,19 +1178,13 @@ void once_2000_usec_tasks_rt() {
     // Push one more job!
   }
 
-  if (counter % 20 == 10) {
+  if (counter % 13 == 10) {
     struct timeval tv;     
     once_26_msec_temp_rt();
   }
 
   // The PLL like to lock slowly
-#if 0  
-  if ((counter % 1000 == 3) || 
-    
-  }
-#endif
-  
-  if (((counter % 606 == 20) && vm.needs_scaling) || 
+  if (((counter % 500 == 20) && vm.needs_scaling) || 
      (vm.last_bist_state_machine == BIST_SM_CHANGE_FREQ1)) {
      //struct timeval tv;     
      //start_stopper(&tv);
