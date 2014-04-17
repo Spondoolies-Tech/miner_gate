@@ -455,22 +455,10 @@ int get_print_win(int winner_device) {
   winner_id = winner_id & 0xFF;
   RT_JOB *work_in_hw = peak_rt_queue(winner_id);
 
-  if (work_in_hw->work_state == WORK_STATE_HAS_JOB) {
+  if ((work_in_hw->work_state == WORK_STATE_HAS_JOB) &&
+      (work_in_hw->winner_nonce == 0)) {
     struct timeval tv;
     if (winner_nonce != 0) {
-    
-   //start_stopper(&tv);
-   //DBG(DBG_WINS,"------ FOUND WIN:----\n");
-   //DBG(DBG_WINS,"- midstate:\n");         
-   /*int i;
-   for (i = 0; i < 8; i++) {
-       DBG(DBG_WINS,"-   %08x\n", work_in_hw->midstate[i]); 
-   }
-   DBG(DBG_WINS,"- mrkle_root: %08x\n", work_in_hw->mrkle_root);
-   DBG(DBG_WINS,"- timestamp : %08x\n", work_in_hw->timestamp);
-   DBG(DBG_WINS,"- difficulty: %08x\n", work_in_hw->difficulty);
-   DBG(DBG_WINS,"--- NONCE = %08x \n- ", winner_nonce);    
-   */
 /*
     memcpy((const unsigned char*)vm.last_win.midstate, (const unsigned char*)work_in_hw->midstate, sizeof(work_in_hw->midstate));   
     vm.last_win.mrkle_root = work_in_hw->mrkle_root;
@@ -511,15 +499,17 @@ int get_print_win(int winner_device) {
    //end_stopper(&tv, "Win compute");
 #endif      
     //printf("Win\n");
+    
     work_in_hw->winner_nonce = winner_nonce;
-
     if (work_in_hw->ntime_offset) {
       work_in_hw->timestamp = ntohl(ntohl(work_in_hw->timestamp) - work_in_hw->ntime_offset);  
     }
+    // Push wins imediatly
+    push_work_rsp(work_in_hw);
     vm.concecutive_bad_wins = 0;
    }
   } else {
-    psyslog( "!!!!!  Warning !!!!: Win orphan job 0x%x, nonce=0x%x!!!\n" ,winner_id,  winner_nonce);
+    psyslog( "!!!!!  Warning !!!!: Win orphan job 0x%x or double win, nonce=0x%x!!!\n" ,winner_id,  winner_nonce);
     vm.concecutive_bad_wins++;
     if (vm.concecutive_bad_wins > 300) {
       // Hammers out of sync.
