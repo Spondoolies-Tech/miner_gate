@@ -163,15 +163,13 @@ int read_work_mode(int input_voltage) {
   } 
 
 
-  file = fopen ("/etc/mg_max_voltage", "r");
+  file = fopen ("/etc/mg_vtrim_override", "r");
   if (file > 0) {
     int vtrim;
     fscanf(file, "%d", &vtrim);
-    if (vtrim >= 0 && i <= VTRIM_810 - VTRIM_MIN) {
-      vm.vtrim_max = VTRIM_MIN+vtrim;
-      if (vm.vtrim_start > vm.vtrim_max) {
-        vm.vtrim_start = vm.vtrim_max;
-      }
+    if (vtrim >= VTRIM_MIN && vtrim <= VTRIM_810) {
+      vm.vtrim_max = vtrim;
+      vm.vtrim_start = vm.vtrim_max;
     }
     fclose (file);
   } 
@@ -198,7 +196,7 @@ static void sighandler(int sig)
   /* Restore signal handlers so we can still quit if kill_work fails */  
   sigaction(SIGTERM, &termhandler, NULL);
   sigaction(SIGINT, &inthandler, NULL);
-  exit_nicely(2);
+  exit_nicely(0);
 }
 
 

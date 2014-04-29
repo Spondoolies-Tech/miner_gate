@@ -21,7 +21,7 @@
 #include "spond_debug.h"
 
 
-pll_frequency_settings pfs[ASIC_FREQ_MAX] = {
+pll_frequency_settings pfs[ASIC_FREQ_MAX_POSSIBLE_HW] = {
   { 0, 0, 0 }, 
   FREQ_225_0, FREQ_240_0, FREQ_255_0, FREQ_270_0, FREQ_285_0,
   FREQ_300_0, FREQ_315_0, FREQ_330_0, FREQ_345_0, FREQ_360_0, FREQ_375_0,
@@ -82,8 +82,10 @@ void set_pll(int addr, ASIC_FREQ freq) {
   //passert(vm.engines_disabled == 1);
   write_reg_device(addr, ADDR_DLL_OFFSET_CFG_LOW, 0xC3C1C200);
   write_reg_device(addr, ADDR_DLL_OFFSET_CFG_HIGH, 0x0082C381);
-  passert(freq < ASIC_FREQ_MAX);
-  passert(freq >= ASIC_FREQ_225);
+  if(freq >= ASIC_FREQ_MAX_POSSIBLE_HW || freq < ASIC_FREQ_225) {
+    psyslog("ERROR: freq=%d\n",freq*15+210);
+    passert(0);
+  }
   pll_frequency_settings *ppfs;
   ppfs = &pfs[freq];
   uint32_t pll_config = 0;
@@ -92,7 +94,7 @@ void set_pll(int addr, ASIC_FREQ freq) {
   pll_config = (M - 1) & 0xFF;
   pll_config |= ((P - 1) & 0x1F) << 13;
   pll_config |= 0x100000;
-  //printf("Pll %d %x->%x\n",addr,vm.hammer[addr].freq_hw, freq);
+  //psyslog("Pll %d(L:%d) %x->%x\n",addr, addr/HAMMERS_PER_LOOP,vm.hammer[addr].freq_hw, freq);
   write_reg_device(addr, ADDR_PLL_CONFIG, pll_config);
   write_reg_device(addr, ADDR_PLL_ENABLE, 0x0);
   write_reg_device(addr, ADDR_PLL_ENABLE, 0x1);

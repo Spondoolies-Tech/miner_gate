@@ -509,7 +509,10 @@ int get_print_win(int winner_device) {
     vm.concecutive_bad_wins = 0;
    }
   } else {
-    psyslog( "!!!!!  Warning !!!!: Win orphan job 0x%x or double win, nonce=0x%x!!!\n" ,winner_id,  winner_nonce);
+    psyslog( "!!!!!  Warning !!!!: Win orphan job 0x%x or double win, nonce1=0x%x  , nonce=0x%x!!!\n" ,
+      winner_id,  
+      work_in_hw->winner_nonce,
+      winner_nonce);
     vm.concecutive_bad_wins++;
     if (vm.concecutive_bad_wins > 300) {
       // Hammers out of sync.
@@ -750,6 +753,7 @@ void once_second_tasks_rt() {
     }
         
     if (h->too_hot_temp_counter > TOO_HOT_COUNER_DISABLE_ASIC) {
+      psyslog("Disabling HOT asic %d\n", h->address);
       disable_asic_forever_rt(i);
     }
   }
@@ -844,6 +848,7 @@ int update_vm_with_currents_and_temperatures_nrt() {
       pthread_mutex_lock(&hammer_mutex);
       for (int i = loop*HAMMERS_PER_LOOP; i < loop*HAMMERS_PER_LOOP + HAMMERS_PER_LOOP ; i++) {
         if (vm.hammer[i].asic_present) {
+          psyslog("Disabling bad DC asic %d\n", i);
           disable_asic_forever_rt(i);
         }
       }

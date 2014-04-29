@@ -34,7 +34,7 @@ void send_minergate_pkt(const minergate_req_packet* mp_req,
   nbytes = read(socket_fd, (void*)mp_rsp, sizeof(minergate_rsp_packet));  
   passert(nbytes > 0);
  // printf("got %d(%d) bytes\n",mp_rsp->data_length, nbytes);
-  passert(mp_rsp->last_req->protocol_version == MINERGATE_PROTOCOL_VERSION);      
+  passert(mp_rsp->protocol_version == MINERGATE_PROTOCOL_VERSION);      
   passert(mp_rsp->magic == 0xcaf4);
 }
 
