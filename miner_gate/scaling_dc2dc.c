@@ -285,11 +285,7 @@ void do_bist_fix_loops_rt() {
       int uptime = time(NULL) - vm.start_mine_time;
       if (
           ((counter % BIST_PERIOD_SECS) == 0) ||
-           (vm.last_bist_state_machine == BIST_SM_DO_BIST_AGAIN) ||
-           (
-             (uptime < AGRESSIVE_BIST_PERIOD_UPTIME_SECS) &&
-             ((counter % AGRESSIVE_BIST_PERIOD_SECS) == 0)
-           )
+           (vm.last_bist_state_machine == BIST_SM_DO_BIST_AGAIN)
           ){
        
          struct timeval tv; 

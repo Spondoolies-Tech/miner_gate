@@ -41,7 +41,7 @@
 #define BIST_PERIOD_SECS                              15 
 #define AGRESSIVE_BIST_PERIOD_SECS                    15
 #define AGRESSIVE_BIST_PERIOD_UPTIME_SECS         (60*20)
-
+#define MAX_LEADING_ZEROES                            62
 
 #define TRY_ASIC_FREQ_INCREASE_PERIOD_SECS 2
 
@@ -103,7 +103,6 @@
 #define FAN_QUIET 50
 
 
-#define MAX_LEADING_ZEROES 50
 
 //#define CORNER_DISCOVERY_FREQ_SS       ASIC_FREQ_480 // all less
 

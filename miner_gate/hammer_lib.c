@@ -315,7 +315,18 @@ void push_to_hw_queue_rt(RT_JOB *work) {
   //passert(work->work_id_in_hw < 0x100);
   write_reg_broadcast(ADDR_JOB_ID, work->work_id_in_hw);
   //write_reg_broadcast(ADDR_COMMAND, BIT_CMD_END_JOB_IF_Q_FULL);
-  write_reg_broadcast(ADDR_COMMAND, BIT_CMD_LOAD_JOB);
+  if (vm.slow_asic_start == 1) {
+    for (int i = 0; i < HAMMERS_COUNT; i++ ) {
+      HAMMER *h = &vm.hammer[i];
+      if (h->asic_present) {
+        write_reg_device(i,ADDR_COMMAND, BIT_CMD_LOAD_JOB);
+        flush_spi_write();
+      }
+    }
+    vm.slow_asic_start = 0;
+  } else {
+    write_reg_broadcast(ADDR_COMMAND, BIT_CMD_LOAD_JOB);
+  }
   flush_spi_write();
 }
 
@@ -638,6 +649,16 @@ int do_bist_ok_rt(int long_bist) {
   int failed = 0;
 
 
+/*
+  for (int i = 0; i < HAMMERS_COUNT; i++ ) {
+    HAMMER *h = &vm.hammer[i];
+    if (h->asic_present) {
+      write_reg_device(i,ADDR_COMMAND, BIT_CMD_END_JOB);
+      write_reg_device(i,ADDR_COMMAND, BIT_CMD_END_JOB);
+      flush_spi_write();
+    }
+  }
+*/  
 
    // Give BIST jobc
    write_reg_broadcast(ADDR_BIST_NONCE_START, bist_tests[bist_id].nonce_winner - 20000); 
@@ -660,6 +681,16 @@ int do_bist_ok_rt(int long_bist) {
    flush_spi_write();
    bist_id = (bist_id+1)%TOTAL_BISTS;
 
+/*
+   for (int i = 0; i < HAMMERS_COUNT; i++ ) {
+      HAMMER *h = &vm.hammer[i];
+      if (h->asic_present) {
+        write_reg_device(i,ADDR_COMMAND, BIT_CMD_LOAD_JOB);
+        flush_spi_write();
+      }
+    } 
+*/   
+  
   
    int i = 0;
    int res;
@@ -709,6 +740,7 @@ int do_bist_ok_rt(int long_bist) {
  
   write_reg_broadcast(ADDR_CONTROL_SET0, BIT_CTRL_BIST_MODE);
   write_reg_broadcast(ADDR_WIN_LEADING_0, vm.cur_leading_zeroes);
+  //vm.slow_asic_start = 1;
   flush_spi_write();
   return failed;
 }
@@ -1077,6 +1109,9 @@ void push_job_to_hw_rt() {
     // Update leading zeroes?
     vm.not_mining_time = 0;
     if (work.leading_zeroes != vm.cur_leading_zeroes) {
+      if (work.leading_zeroes > MAX_LEADING_ZEROES) {
+        work.leading_zeroes = MAX_LEADING_ZEROES;
+      }
       vm.cur_leading_zeroes = work.leading_zeroes;      
       write_reg_broadcast(ADDR_WIN_LEADING_0, vm.cur_leading_zeroes);
     }

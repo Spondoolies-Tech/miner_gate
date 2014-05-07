@@ -72,9 +72,12 @@ void dc2dc_init_loop(int loop) {
       psyslog("Inductor type loop %d: 0x881f\n",loop);
       i2c_write_word(I2C_DC2DC, 0x38, 0x881f); 	// Inductor DCR
     } else if (dc2dc_inductor_type == 1) {
-      psyslog("Inductor type loop %d: 0x883f\n",loop);
+      psyslog("Inductor type loop %d: 0x8835\n",loop);
       i2c_write_word(I2C_DC2DC, 0x38, 0x8835);  // Inductor DCR
-    } else {
+    } else if (dc2dc_inductor_type == 2) {
+       psyslog("Inductor type loop %d: 0x8830\n",loop);
+       i2c_write_word(I2C_DC2DC, 0x38, 0x8830);  // Inductor DCR
+    } else { 
       psyslog("Error: Unknown inductor type!\n");
       passert(0);
     }
