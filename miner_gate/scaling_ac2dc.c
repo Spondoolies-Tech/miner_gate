@@ -92,15 +92,15 @@ void loop_up(int l) {
   //printf("1\n");
   dc2dc_set_vtrim(l, vm.loop_vtrim[l]+1, vm.loop_margin_low[l], &err);
   vm.loop[l].last_ac2dc_scaling_on_loop  = now;
-   //printf("3\n");
-   psyslog( "LOOP UP:%d\n" , l);
+  //printf("3\n");
+  psyslog( "LOOP UP:%d\n" , l);
   for (int h = l*HAMMERS_PER_LOOP; h< l*HAMMERS_PER_LOOP+HAMMERS_PER_LOOP;h++) {
     if (vm.hammer[h].asic_present) {
           // if the limit is bist limit, then let asic grow a bit more
           // if its termal, dont change it.
           if (vm.hammer[h].freq_bist_limit == vm.hammer[h].freq_thermal_limit) {
             vm.hammer[h].freq_thermal_limit = vm.hammer[h].freq_bist_limit = 
-              (vm.hammer[h].freq_bist_limit < ASIC_FREQ_MAX-2)?((ASIC_FREQ)(vm.hammer[h].freq_bist_limit+2)):ASIC_FREQ_MAX; 
+              (vm.hammer[h].freq_bist_limit < MAX_ASIC_FREQ-2)?((ASIC_FREQ)(vm.hammer[h].freq_bist_limit+2)):(MAX_ASIC_FREQ-1); 
           }
           vm.hammer[h].agressivly_scale_up = true;
         } 
@@ -173,10 +173,13 @@ int asic_frequency_update_nrt_fast() {
           printf("P:%d[%d] ", h->address, h->freq_wanted*15+210);
           one_ok = 1;
           h->freq_wanted = (ASIC_FREQ)(h->freq_wanted+1);
-          if (h->freq_wanted == ASIC_FREQ_MAX) {
+          /*
+          if (h->freq_wanted == MAX_ASIC_FREQ) {
+            psyslog("Disabling too fast runaway asic %d\n", h->address);
             disable_asic_forever_rt(h->address);
             continue;
           }
+          */
           h->freq_thermal_limit = h->freq_wanted;
           h->freq_bist_limit = h->freq_wanted;
           set_pll(h->address, h->freq_wanted);
@@ -210,6 +213,7 @@ int asic_frequency_update_nrt_fast() {
 void set_working_voltage_discover_top_speeds() {
   int one_ok;
   enable_voltage_freq(ASIC_FREQ_225);
+  int current_freq = ASIC_FREQ_225;
   do {
     // Let'em plls lock proper
     //usleep(10000);
@@ -217,7 +221,7 @@ void set_working_voltage_discover_top_speeds() {
     //usleep(10000);    
     do_bist_ok_rt(0);
     one_ok = asic_frequency_update_nrt_fast();
- } while (one_ok && (!kill_app));
+ } while (one_ok && (!kill_app) && (current_freq++)<=MAX_ASIC_FREQ);
 
 
   // All remember BIST they failed!

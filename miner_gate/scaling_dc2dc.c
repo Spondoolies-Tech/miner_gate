@@ -122,19 +122,19 @@ int asic_can_up(HAMMER *a, int force) {
   return 1;
 }
 void asic_up(HAMMER *a) {
-   if(a->freq_wanted < ASIC_FREQ_MAX) {
+   if(a->freq_wanted < MAX_ASIC_FREQ) {
      ASIC_FREQ wanted_freq = (ASIC_FREQ)(a->freq_wanted+1);
      a->freq_wanted = wanted_freq;
      //set_pll(a->address, wanted_freq);       
      a->last_freq_change_time = now;
-   }
-   vm.loop[a->loop_address].dc2dc.dc_current_16s += 4;
+     vm.loop[a->loop_address].dc2dc.dc_current_16s += 4;
 //   vm.loop[a->loop_address].dc2dc.dc_current_16s_arr[0] += 4;
 //   vm.loop[a->loop_address].dc2dc.dc_current_16s_arr[1] += 4;
 //   vm.loop[a->loop_address].dc2dc.dc_current_16s_arr[2] += 4;
 //   vm.loop[a->loop_address].dc2dc.dc_current_16s_arr[3] += 4;
    vm.ac2dc_power++;
    vm.needs_scaling = 1;
+   }
 }
 
 
@@ -285,11 +285,7 @@ void do_bist_fix_loops_rt() {
       int uptime = time(NULL) - vm.start_mine_time;
       if (
           ((counter % BIST_PERIOD_SECS) == 0) ||
-           (vm.last_bist_state_machine == BIST_SM_DO_BIST_AGAIN) ||
-           (
-             (uptime < AGRESSIVE_BIST_PERIOD_UPTIME_SECS) &&
-             ((counter % AGRESSIVE_BIST_PERIOD_SECS) == 0)
-           )
+           (vm.last_bist_state_machine == BIST_SM_DO_BIST_AGAIN)
           ){
        
          struct timeval tv; 

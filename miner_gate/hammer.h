@@ -351,6 +351,7 @@ typedef struct {
 
   // bollean flag to change PLLS
   int pll_changed;
+  int slow_asic_start;
 
   // jobs right one after another
   int cosecutive_jobs;

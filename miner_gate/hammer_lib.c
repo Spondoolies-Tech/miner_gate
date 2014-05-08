@@ -315,7 +315,18 @@ void push_to_hw_queue_rt(RT_JOB *work) {
   //passert(work->work_id_in_hw < 0x100);
   write_reg_broadcast(ADDR_JOB_ID, work->work_id_in_hw);
   //write_reg_broadcast(ADDR_COMMAND, BIT_CMD_END_JOB_IF_Q_FULL);
-  write_reg_broadcast(ADDR_COMMAND, BIT_CMD_LOAD_JOB);
+  if (vm.slow_asic_start == 1) {
+    for (int i = 0; i < HAMMERS_COUNT; i++ ) {
+      HAMMER *h = &vm.hammer[i];
+      if (h->asic_present) {
+        write_reg_device(i,ADDR_COMMAND, BIT_CMD_LOAD_JOB);
+        flush_spi_write();
+      }
+    }
+    vm.slow_asic_start = 0;
+  } else {
+    write_reg_broadcast(ADDR_COMMAND, BIT_CMD_LOAD_JOB);
+  }
   flush_spi_write();
 }
 
@@ -455,22 +466,10 @@ int get_print_win(int winner_device) {
   winner_id = winner_id & 0xFF;
   RT_JOB *work_in_hw = peak_rt_queue(winner_id);
 
-  if (work_in_hw->work_state == WORK_STATE_HAS_JOB) {
+  if ((work_in_hw->work_state == WORK_STATE_HAS_JOB) &&
+      (work_in_hw->winner_nonce == 0)) {
     struct timeval tv;
     if (winner_nonce != 0) {
-    
-   //start_stopper(&tv);
-   //DBG(DBG_WINS,"------ FOUND WIN:----\n");
-   //DBG(DBG_WINS,"- midstate:\n");         
-   /*int i;
-   for (i = 0; i < 8; i++) {
-       DBG(DBG_WINS,"-   %08x\n", work_in_hw->midstate[i]); 
-   }
-   DBG(DBG_WINS,"- mrkle_root: %08x\n", work_in_hw->mrkle_root);
-   DBG(DBG_WINS,"- timestamp : %08x\n", work_in_hw->timestamp);
-   DBG(DBG_WINS,"- difficulty: %08x\n", work_in_hw->difficulty);
-   DBG(DBG_WINS,"--- NONCE = %08x \n- ", winner_nonce);    
-   */
 /*
     memcpy((const unsigned char*)vm.last_win.midstate, (const unsigned char*)work_in_hw->midstate, sizeof(work_in_hw->midstate));   
     vm.last_win.mrkle_root = work_in_hw->mrkle_root;
@@ -511,15 +510,20 @@ int get_print_win(int winner_device) {
    //end_stopper(&tv, "Win compute");
 #endif      
     //printf("Win\n");
+    
     work_in_hw->winner_nonce = winner_nonce;
-
     if (work_in_hw->ntime_offset) {
       work_in_hw->timestamp = ntohl(ntohl(work_in_hw->timestamp) - work_in_hw->ntime_offset);  
     }
+    // Push wins imediatly
+    push_work_rsp(work_in_hw);
     vm.concecutive_bad_wins = 0;
    }
   } else {
-    psyslog( "!!!!!  Warning !!!!: Win orphan job 0x%x, nonce=0x%x!!!\n" ,winner_id,  winner_nonce);
+    psyslog( "!!!!!  Warning !!!!: Win orphan job 0x%x or double win, nonce1=0x%x  , nonce=0x%x!!!\n" ,
+      winner_id,  
+      work_in_hw->winner_nonce,
+      winner_nonce);
     vm.concecutive_bad_wins++;
     if (vm.concecutive_bad_wins > 300) {
       // Hammers out of sync.
@@ -645,6 +649,16 @@ int do_bist_ok_rt(int long_bist) {
   int failed = 0;
 
 
+/*
+  for (int i = 0; i < HAMMERS_COUNT; i++ ) {
+    HAMMER *h = &vm.hammer[i];
+    if (h->asic_present) {
+      write_reg_device(i,ADDR_COMMAND, BIT_CMD_END_JOB);
+      write_reg_device(i,ADDR_COMMAND, BIT_CMD_END_JOB);
+      flush_spi_write();
+    }
+  }
+*/  
 
    // Give BIST jobc
    write_reg_broadcast(ADDR_BIST_NONCE_START, bist_tests[bist_id].nonce_winner - 20000); 
@@ -667,6 +681,16 @@ int do_bist_ok_rt(int long_bist) {
    flush_spi_write();
    bist_id = (bist_id+1)%TOTAL_BISTS;
 
+/*
+   for (int i = 0; i < HAMMERS_COUNT; i++ ) {
+      HAMMER *h = &vm.hammer[i];
+      if (h->asic_present) {
+        write_reg_device(i,ADDR_COMMAND, BIT_CMD_LOAD_JOB);
+        flush_spi_write();
+      }
+    } 
+*/   
+  
   
    int i = 0;
    int res;
@@ -716,6 +740,7 @@ int do_bist_ok_rt(int long_bist) {
  
   write_reg_broadcast(ADDR_CONTROL_SET0, BIT_CTRL_BIST_MODE);
   write_reg_broadcast(ADDR_WIN_LEADING_0, vm.cur_leading_zeroes);
+  //vm.slow_asic_start = 1;
   flush_spi_write();
   return failed;
 }
@@ -760,6 +785,7 @@ void once_second_tasks_rt() {
     }
         
     if (h->too_hot_temp_counter > TOO_HOT_COUNER_DISABLE_ASIC) {
+      psyslog("Disabling HOT asic %d\n", h->address);
       disable_asic_forever_rt(i);
     }
   }
@@ -854,6 +880,7 @@ int update_vm_with_currents_and_temperatures_nrt() {
       pthread_mutex_lock(&hammer_mutex);
       for (int i = loop*HAMMERS_PER_LOOP; i < loop*HAMMERS_PER_LOOP + HAMMERS_PER_LOOP ; i++) {
         if (vm.hammer[i].asic_present) {
+          psyslog("Disabling bad DC asic %d\n", i);
           disable_asic_forever_rt(i);
         }
       }
@@ -1082,6 +1109,9 @@ void push_job_to_hw_rt() {
     // Update leading zeroes?
     vm.not_mining_time = 0;
     if (work.leading_zeroes != vm.cur_leading_zeroes) {
+      if (work.leading_zeroes > MAX_LEADING_ZEROES) {
+        work.leading_zeroes = MAX_LEADING_ZEROES;
+      }
       vm.cur_leading_zeroes = work.leading_zeroes;      
       write_reg_broadcast(ADDR_WIN_LEADING_0, vm.cur_leading_zeroes);
     }

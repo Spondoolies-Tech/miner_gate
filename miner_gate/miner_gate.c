@@ -163,15 +163,13 @@ int read_work_mode(int input_voltage) {
   } 
 
 
-  file = fopen ("/etc/mg_max_voltage", "r");
+  file = fopen ("/etc/mg_vtrim_override", "r");
   if (file > 0) {
     int vtrim;
     fscanf(file, "%d", &vtrim);
-    if (vtrim >= 0 && i <= VTRIM_810 - VTRIM_MIN) {
-      vm.vtrim_max = VTRIM_MIN+vtrim;
-      if (vm.vtrim_start > vm.vtrim_max) {
-        vm.vtrim_start = vm.vtrim_max;
-      }
+    if (vtrim >= VTRIM_MIN && vtrim <= VTRIM_810) {
+      vm.vtrim_max = vtrim;
+      vm.vtrim_start = vm.vtrim_max;
     }
     fclose (file);
   } 
@@ -198,7 +196,7 @@ static void sighandler(int sig)
   /* Restore signal handlers so we can still quit if kill_work fails */  
   sigaction(SIGTERM, &termhandler, NULL);
   sigaction(SIGINT, &inthandler, NULL);
-  exit_nicely(2);
+  exit_nicely(0);
 }
 
 
@@ -376,6 +374,7 @@ void *connection_handler_thread(void *adptr) {
     struct timeval last_time; 
     int usec;
     if (nbytes) {
+      passert(a->last_req->protocol_version == MINERGATE_PROTOCOL_VERSION);      
       passert(a->last_req->magic == 0xcaf4);
       gettimeofday(&now, NULL);
 
@@ -627,6 +626,12 @@ int main(int argc, char *argv[]) {
   psyslog("ac2dc_init\n");
   ac2dc_init(&input_voltage);
   psyslog("Read work mode\n");
+  FILE* file = fopen ("/etc/mg_force_input_voltage", "r");
+  if (file > 0) {
+    fscanf (file, "%d", &input_voltage);	  
+    fclose(file);
+  }
+  printf("Voltage: %d\n", input_voltage);  
   read_work_mode(input_voltage);
   // Must be done after "read_work_mode"
   psyslog("Read  NVM\n");

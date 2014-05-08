@@ -270,8 +270,8 @@ void print_scaling() {
                 total_watt/16,
                 total_loops,
                 total_asics,
-                (total_hash_power*15*192)/1000/total_asics,
-                (vm.ac2dc_power-70)/total_asics*192+70,
+                (total_asics)?((total_hash_power*15*192)/1000/total_asics):0,
+                (total_asics)?((vm.ac2dc_power-70)/total_asics*192+70):0,
                 vm.mgmt_temp_max
   );
 
