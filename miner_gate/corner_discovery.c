@@ -111,7 +111,7 @@ void discover_good_loops() {
     vm.loop[i].id = i;
     unsigned int bypass_loops = (~(1 << i) & 0xFFFFFF);
     write_spi(ADDR_SQUID_LOOP_BYPASS, bypass_loops);
-    if (test_serial(i)) {
+    if (vm.loop[i].enabled_loop && test_serial(i)) {
       vm.loop[i].enabled_loop = 1;
       vm.loop[i].dc2dc.max_vtrim_currentwise = vm.vtrim_max;
       vm.loop_vtrim[i] = vm.vtrim_start;

@@ -48,9 +48,10 @@ static void dc2dc_set_channel(int channel_mask, int *err);
 
 // not locked
 void dc2dc_init_loop(int loop) {
-  
     int err;
     int dc2dc_inductor_type;
+    assert(loop < LOOP_COUNT);
+    assert(loop >= 0);
     dc2dc_select_i2c(loop, &err);
     if (err) {
       psyslog(RED "FAILED TO INIT DC2DC1 %d\n" RESET, loop);
@@ -68,6 +69,7 @@ void dc2dc_init_loop(int loop) {
 
     i2c_write_word(I2C_DC2DC, 0x35, 0xf028); 	// VIN ON
     i2c_write_word(I2C_DC2DC, 0x36, 0xf018); 	// VIN OFF(??)
+    vm.loop[loop].enabled_loop = 1;        
     if (dc2dc_inductor_type == 0) { 
       psyslog("Inductor type loop %d: 0x881f\n",loop);
       i2c_write_word(I2C_DC2DC, 0x38, 0x881f); 	// Inductor DCR
@@ -78,8 +80,9 @@ void dc2dc_init_loop(int loop) {
        psyslog("Inductor type loop %d: 0x8830\n",loop);
        i2c_write_word(I2C_DC2DC, 0x38, 0x8830);  // Inductor DCR
     } else { 
-      psyslog("Error: Unknown inductor type!\n");
-      passert(0);
+      psyslog("Error: Unknown inductor type %d\n", dc2dc_inductor_type);
+      vm.loop[loop].enabled_loop = 0;
+      //passert(0);
     }
     
     i2c_write_word(I2C_DC2DC, 0x46, 0xf84D); 	// OC Fault
