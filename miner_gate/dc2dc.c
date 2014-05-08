@@ -183,6 +183,35 @@ static void dc2dc_select_i2c_ex(int top,          // 1 or 0
   }
 }
 
+int dc2dc_set_dcr_inductor_cat(int loop,int value){
+	int rc = 0;
+	int err = 0;
+	//fprintf(stderr, "---> Entered dc2dc_set_dcr_inductor_cat %d %d\n", loop , value);
+	dc2dc_select_i2c(loop , &err);
+	if (0 != err) {
+		//fprintf(stderr, "LOOP %2d SELECT FAILED\n", loop);
+		return 1;
+	}
+
+	//fprintf(stderr, "writing %d to LOOP %2d \n", (uint16_t)(0xFFFF & value),loop );
+	usleep(1000);
+	i2c_write_word(I2C_DC2DC, 0xD0, (uint16_t)(0xFFFF & value), &err);
+	if (0 != err) {
+		//fprintf(stderr, "LOOP %2d SET DCR INDUCTOR to %d FAILED\n", loop , value);
+		return 2;
+	}
+
+	usleep(1000);
+	i2c_write(I2C_DC2DC, 0x15, &err);
+	usleep(5000);
+	if (0 != err) {
+		//fprintf(stderr, "LOOP %2d SET DCR INDUCTOR to %d FAILED SAVING CONF\n", loop , value);
+		return 3;
+	}
+
+	return rc;
+}
+
 static void dc2dc_select_i2c(int loop, int *err) { // 1 or 0
   int top = (loop < 12);
   int i2c_group = ((loop % 12) >= 8);
