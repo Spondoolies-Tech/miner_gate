@@ -231,7 +231,7 @@ void dc2dc_set_vtrim(int loop, uint32_t vtrim, bool vmargin_75low  , int *err) {
 #endif
 
 #ifndef __MBTEST__
-	  printf("Set VOLTAGE Loop %d Milli:%d Vtrim:%x\n",loop, VTRIM_TO_VOLTAGE_MILLI(vtrim, vm.vmargin_start),vtrim);
+	  printf("Set VOLTAGE Loop %d Milli:%d Vtrim:%x\n",loop, VTRIM_TO_VOLTAGE_MILLI(vtrim),vtrim);
 #endif
 
   pthread_mutex_lock(&i2c_mutex);
@@ -250,7 +250,8 @@ void dc2dc_set_vtrim(int loop, uint32_t vtrim, bool vmargin_75low  , int *err) {
 
   // disengage from scale manager if not needed
 #ifdef MINERGATE
-  vm.loop_vtrim[loop] = vtrim;
+  vm.loop[loop].dc2dc.loop_vtrim = vtrim;
+  vm.loop[loop].dc2dc.loop_margin_low = vmargin_75low;
   vm.loop[loop].dc2dc.last_voltage_change_time = time(NULL);
 #endif
 
@@ -335,7 +336,7 @@ int update_dc2dc_current_temp_measurments(int loop, int* overcurrent, int* overc
            vm.loop[i].dc2dc.dc_current_16s_arr[3]) >> 2;*/
           
         vm.loop[i].dc2dc.dc_power_watts_16s = 
-        vm.loop[i].dc2dc.dc_current_16s*VTRIM_TO_VOLTAGE_MILLI(vm.loop_vtrim[i], vm.loop_margin_low[i])/1000;
+        vm.loop[i].dc2dc.dc_current_16s*VTRIM_TO_VOLTAGE_MILLI(vm.loop[i].dc2dc.loop_vtrim)/1000;
     } else {
       // This will disable ac2dc scaling
       vm.loop[i].dc2dc.dc_current_16s = 0;

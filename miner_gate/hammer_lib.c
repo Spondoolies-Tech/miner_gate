@@ -858,8 +858,8 @@ int update_vm_with_currents_and_temperatures_nrt() {
       int l = loop;
 
       if (loop_can_down(l)) {
-       if (vm.loop_vtrim[l] > VTRIM_MIN) {       
-          vm.loop[l].dc2dc.max_vtrim_currentwise = vm.loop_vtrim[l]-1;
+       if (vm.loop[l].dc2dc.loop_vtrim > VTRIM_MIN) {       
+          vm.loop[l].dc2dc.max_vtrim_currentwise = vm.loop[l].dc2dc.loop_vtrim-1;
        }
        loop_down(l);
       }
@@ -911,17 +911,17 @@ void set_temp_reading_rt(int measure_temp_addr, uint32_t* intr) {
 
 void proccess_temp_reading_rt(HAMMER *a, int intr) {
      if (!(intr & BIT_INTR_0_OVER)) {
-       if (a->asic_temp > (MAX_ASIC_TEMPERATURE-2)) {
-           a->asic_temp = (ASIC_TEMP)(MAX_ASIC_TEMPERATURE-2);
+       if (a->asic_temp > (vm.max_asic_temp-2)) {
+           a->asic_temp = (ASIC_TEMP)(vm.max_asic_temp-2);
            a->too_hot_temp_counter=0;
        }
      } else if ((intr & BIT_INTR_1_OVER)) { 
-        if ((a->asic_temp < MAX_ASIC_TEMPERATURE)) {
-          a->asic_temp = (ASIC_TEMP)(MAX_ASIC_TEMPERATURE);
+        if ((a->asic_temp < vm.max_asic_temp)) {
+          a->asic_temp = (ASIC_TEMP)(vm.max_asic_temp);
           a->too_hot_temp_counter++;
         }
      } else {
-          a->asic_temp = (ASIC_TEMP)(MAX_ASIC_TEMPERATURE-1);          
+          a->asic_temp = (ASIC_TEMP)(vm.max_asic_temp-1);          
           a->too_hot_temp_counter=0;
      }
 
@@ -1370,6 +1370,9 @@ void *i2c_state_machine_nrt(void *p) {
          }
       }
 
+
+
+
       // Once every minute
       if (counter%(48*60) == 0) {
         static int addr = 0;
@@ -1377,17 +1380,15 @@ void *i2c_state_machine_nrt(void *p) {
         addr = (addr+1)%HAMMERS_COUNT;
         if (vm.hammer[addr].asic_present && 
           (vm.hammer[addr].freq_thermal_limit < vm.hammer[addr].freq_bist_limit) &&
-           vm.hammer[addr].asic_temp < (MAX_ASIC_TEMPERATURE-1)) {
+           vm.hammer[addr].asic_temp < (vm.max_asic_temp-1)) {
           vm.hammer[addr].freq_thermal_limit = (ASIC_FREQ)(vm.hammer[addr].freq_thermal_limit+1);
         }
-        //vm.solved_difficulty_total = 0;
+        //vm.solved_difficulty_total = 0;    
 
 
-        // every 3 minutes
-        if (counter%(48*60*3) == 0) {
-            ac2dc_scaling();
+        if (counter%(48*60*2) == 0) {
+          ac2dc_scaling();
         }
-
         
         // once an hour - increase max vtrim on one loop
         if (counter%(48*60*60) == 0) { 
@@ -1399,6 +1400,10 @@ void *i2c_state_machine_nrt(void *p) {
           } 
         }
       }
+
+
+   
+       
     }
 
   

@@ -224,9 +224,9 @@ void print_scaling() {
           "%s%2d%s|%s%3d%s|"   
           "%3d|%2d|%2d" , 
           hi.l, 
-          vm.loop_vtrim[hi.l]&0xffff,
+          vm.loop[hi.l].dc2dc.loop_vtrim&0xffff,
           vm.loop[hi.l].dc2dc.max_vtrim_currentwise&0xffff,
-          VTRIM_TO_VOLTAGE_MILLI(vm.loop_vtrim[hi.l],vm.loop_margin_low[hi.l]),
+          VTRIM_TO_VOLTAGE_MILLI(vm.loop[hi.l].dc2dc.loop_vtrim),
           dc2dc->dc_power_watts_16s/16,
           
         ((dc2dc->dc_current_16s>=DC2DC_INITIAL_CURRENT_16S - 1*16)?RED:GREEN), dc2dc->dc_current_16s/16,GREEN,
@@ -254,7 +254,7 @@ void print_scaling() {
 
     fprintf(f, GREEN RESET "|%3d:%s%3dc%s %s%3dhz%s(%2d/%2d)%s %x" GREEN RESET "%3d", 
       hi.addr,
-      (hi.a->asic_temp>=MAX_ASIC_TEMPERATURE-1)?((hi.a->asic_temp>=MAX_ASIC_TEMPERATURE)?RED:YELLOW):GREEN,((hi.a->asic_temp*6)+77),GREEN,
+      (hi.a->asic_temp>=vm.max_asic_temp-1)?((hi.a->asic_temp>=vm.max_asic_temp)?RED:YELLOW):GREEN,((hi.a->asic_temp*6)+77),GREEN,
        ((hi.a->freq_wanted>=ASIC_FREQ_540)? (MAGENTA) : ((hi.a->freq_wanted<=ASIC_FREQ_510)?(CYAN):(YELLOW))), hi.a->freq_wanted*15+210,GREEN,
        hi.a->freq_thermal_limit-hi.a->freq_wanted,
        hi.a->freq_bist_limit-hi.a->freq_wanted, 

@@ -325,8 +325,8 @@ void maybe_change_freqs_nrt() {
 
      
      if (vm.loop[l].dc2dc.dc_current_16s > vm.loop[l].dc2dc.dc_current_limit_16s) {
-       if (vm.loop_vtrim[l] > VTRIM_MIN) {       
-           vm.loop[l].dc2dc.max_vtrim_currentwise = vm.loop_vtrim[l]-1;
+       if (vm.loop[l].dc2dc.loop_vtrim > VTRIM_MIN) {       
+           vm.loop[l].dc2dc.max_vtrim_currentwise = vm.loop[l].dc2dc.loop_vtrim-1;
        }
        loop_down(l);
 		//critical_downscale = 1;
@@ -343,7 +343,7 @@ void maybe_change_freqs_nrt() {
        for (int i = 0 ; i < HAMMERS_PER_LOOP ; i++) {
          HAMMER* h = &vm.hammer[l*HAMMERS_PER_LOOP+i];
          if (h->asic_present) {
-           if (h->asic_temp >= MAX_ASIC_TEMPERATURE && 
+           if (h->asic_temp >= vm.max_asic_temp && 
                h->freq_wanted > MINIMAL_ASIC_FREQ &&
                (now - h->last_down_freq_change_time) > 20) {
              //printf("Running critical BIST for ASIC TEMP on %x\n", h->freq_wanted);
@@ -459,7 +459,7 @@ void asic_frequency_update_nrt(int verbal) {
         } 
 
 
-        if (h->asic_temp >= MAX_ASIC_TEMPERATURE ) {
+        if (h->asic_temp >= vm.max_asic_temp ) {
           if(h->freq_wanted > MINIMAL_ASIC_FREQ) {
              // let it cool off
              //printf("TOO HOT:%x\n",h->address);

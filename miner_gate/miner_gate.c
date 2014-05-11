@@ -109,86 +109,52 @@ void exit_nicely(int seconds_sleep_before_exit) {
   exit(0);  
 }
 
+
+
+
+
+
+
 int read_work_mode(int input_voltage) {
-	FILE* file = fopen ("/etc/mg_work_mode", "r");
+	FILE* file = fopen ("/etc/mg_custom_mode", "r");
   vm.max_ac2dc_power = AC2DC_POWER_LIMIT;
-  if (input_voltage < 130) {
-    psyslog("input_voltage < 130, limit power to 1100\n");
-    vm.max_ac2dc_power = 1100;
-  }
-  
 	int i = 0;
-	if (file <= 0) {
-		vm.work_mode = 2;
-	} else {
-  	fscanf (file, "%d", &vm.work_mode);	  
-    if (vm.work_mode < 0 || vm.work_mode > 3) {
-      vm.work_mode = 2;
-    }
-    fclose (file);
-	}
+  passert(file > 0);
+  vm.vmargin_start = true;	
+	fscanf (file, "%d %d %d %d", &vm.max_fan_level, &vm.voltage_start, &vm.voltage_max, &vm.max_ac2dc_power); 
+  assert(vm.max_fan_level <= 100);
+  assert(vm.max_fan_level >= 0);    
+  assert(vm.voltage_start <= 790);
+  assert(vm.voltage_start >= 555);
+  assert(vm.voltage_max   <= 790);
+  assert(vm.voltage_max   >= 555);
+  assert(vm.voltage_max   >= vm.voltage_start);
+  assert(vm.max_ac2dc_power   >= 1000);
+  assert(vm.max_ac2dc_power   <= AC2DC_POWER_LIMIT);
+  fclose (file);
+
+  vm.vtrim_start = VOLTAGE_TO_VTRIM_MILLI(vm.voltage_start);
+  vm.vtrim_max = VOLTAGE_TO_VTRIM_MILLI(vm.voltage_max);
 
 
-  if (vm.work_mode == 3) { // Super ECON
-    vm.vmargin_start = true;  
-    vm.max_fan_level = FAN_QUIET;
-    vm.vtrim_start = VTRIM_START_ECON;
-    vm.vtrim_max = VTRIM_START_ECON;
-  } else if (vm.work_mode == 0 || (input_voltage < 110)) {  // ECON
-    vm.vmargin_start = false;
-    vm.max_fan_level = FAN_QUIET;
-    vm.vtrim_start = VTRIM_START_QUIET;
-    vm.vtrim_max = VTRIM_MAX_QUIET;
-  } else if (vm.work_mode == 1) { // NORMAL
-    vm.vmargin_start = false;
-    vm.max_fan_level = FAN_NORMAL;
-    vm.vtrim_start = VTRIM_START_NORMAL;
-    vm.vtrim_max = VTRIM_MAX_NORMAL;
-  } else if (vm.work_mode == 2) { // TURBO
-    vm.vmargin_start = false;  
-    vm.max_fan_level = FAN_TURBO;
-    vm.vtrim_start = VTRIM_START_TURBO;
-    vm.vtrim_max = VTRIM_MAX_TURBO;
+  if (input_voltage < 130) {
+     psyslog("input_voltage < 130, limit power to 1100\n");
+     vm.max_ac2dc_power = 1100;
+     if (vm.voltage_start > 640) {
+        vm.voltage_start = 640;
+     }
   } 
 
 
-  file = fopen ("/etc/mg_fan_speed_override", "r");
-  if (file > 0) {
-    int i;
-    fscanf(file, "%d", &i);
-    if (i >= 0 && i <= 100) {
-      vm.max_fan_level = i;
-    }
-    fclose (file);
-  } 
+  // compute VTRIM
+  psyslog(
+    "vm.max_fan_level: %d, vm.voltage_start: %d, vm.voltage_end: %d vm.vtrim_start: %x, vm.vtrim_end: %x\n"
+    ,vm.max_fan_level, vm.voltage_start, vm.voltage_max, vm.vtrim_start, vm.vtrim_max); 
 
-
-  file = fopen ("/etc/mg_vtrim_override", "r");
-  if (file > 0) {
-    int vtrim;
-    fscanf(file, "%d", &vtrim);
-    if (vtrim >= VTRIM_MIN && vtrim <= VTRIM_810) {
-      vm.vtrim_max = vtrim;
-      vm.vtrim_start = vm.vtrim_max;
-    }
-    fclose (file);
-  } 
-
-/*   
-   file = fopen ("/etc/mg_psu_limit", "r");
-   if (file > 0) {
-    int limit;
-    fscanf(file, "%d", &limit);
-    if (limit >= 500) {
-      vm.max_ac2dc_power = limit;
-    }
-    fclose (file);
-  } 
-*/
-
-  printf("WORK MODE = %d\n", vm.work_mode);
 	
 }
+
+
 
 
 static void sighandler(int sig)
@@ -626,9 +592,9 @@ int main(int argc, char *argv[]) {
   psyslog("ac2dc_init\n");
   ac2dc_init(&input_voltage);
   psyslog("Read work mode\n");
-  FILE* file = fopen ("/etc/mg_force_input_voltage", "r");
+  FILE* file = fopen ("/etc/voltage", "w");
   if (file > 0) {
-    fscanf (file, "%d", &input_voltage);	  
+    fprintf (file, "%d", input_voltage);	  
     fclose(file);
   }
   printf("Voltage: %d\n", input_voltage);  
@@ -705,6 +671,7 @@ int main(int argc, char *argv[]) {
   // Set all engines to 0x7FFF
   psyslog("hammer initialisation done %d\n", __LINE__);
   thermal_init();
+  vm.max_asic_temp = MAX_ASIC_TEMPERATURE;
   
 
   // Enables NVM engines in ASICs.

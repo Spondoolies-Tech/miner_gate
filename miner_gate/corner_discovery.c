@@ -30,7 +30,7 @@ void enable_voltage_freq(ASIC_FREQ f) {
       // Set voltage
       int err;
       // dc2dc_set_voltage(l, vm.loop_vtrim[l], &err);
-      dc2dc_set_vtrim(l, vm.loop_vtrim[l], vm.loop_margin_low[l], &err);
+      dc2dc_set_vtrim(l, vm.loop[l].dc2dc.loop_vtrim, vm.loop[l].dc2dc.loop_margin_low, &err);
 
       // for each ASIC
       for (h = 0; h < HAMMERS_PER_LOOP; h++, i++) {
@@ -72,7 +72,8 @@ void good_loops_fast_test() {
       if (!test_serial(i)) {
         vm.loop[i].enabled_loop = 0;
         vm.loop[i].dc2dc.max_vtrim_currentwise = 0;
-        vm.loop_vtrim[i] = 0;
+        vm.loop[i].dc2dc.loop_vtrim = 0;
+        vm.loop[i].dc2dc.loop_margin_low = true;        
         for (int h = i * HAMMERS_PER_LOOP; h < (i + 1) * HAMMERS_PER_LOOP; h++) {
           vm.hammer[h].asic_present = 0;
           vm.hammer[h].working_engines = 0;
@@ -114,15 +115,15 @@ void discover_good_loops() {
     if (vm.loop[i].enabled_loop && test_serial(i)) {
       vm.loop[i].enabled_loop = 1;
       vm.loop[i].dc2dc.max_vtrim_currentwise = vm.vtrim_max;
-      vm.loop_vtrim[i] = vm.vtrim_start;
-      vm.loop_margin_low[i] = vm.vmargin_start;
+      vm.loop[i].dc2dc.loop_vtrim = vm.vtrim_start;
+      vm.loop[i].dc2dc.loop_margin_low = vm.vmargin_start;
       vm.loop[i].dc2dc.dc_current_limit_16s = DC2DC_INITIAL_CURRENT_16S;
       good_loops |= 1 << i;
       ret++;
     } else {
       vm.loop[i].enabled_loop = 0;
       vm.loop[i].dc2dc.max_vtrim_currentwise = 0;
-      vm.loop_vtrim[i] = 0;
+      vm.loop[i].dc2dc.loop_vtrim = 0;
       for (int h = i * HAMMERS_PER_LOOP; h < (i + 1) * HAMMERS_PER_LOOP; h++) {
         vm.hammer[h].asic_present = 0;
         vm.hammer[h].working_engines = 0;

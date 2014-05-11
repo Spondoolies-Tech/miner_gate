@@ -46,15 +46,15 @@ int loop_can_down(int l) {
   
   return  
      (vm.loop[l].enabled_loop && 
-     (vm.loop_vtrim[l] > VTRIM_MIN));
+     (vm.loop[l].dc2dc.loop_vtrim > VTRIM_MIN));
 }
 
 
 void loop_down(int l) {
   int err;
-   //printf("vtrim=%x\n",vm.loop_vtrim[l]);
+   //printf("vtrim=%x\n",vm.loop[l].dc2dc.loop_vtrim);
    psyslog( "LOOP DOWN:%d\n" , l);
-   dc2dc_set_vtrim(l, vm.loop_vtrim[l]-1, vm.loop_margin_low[l], &err);
+   dc2dc_set_vtrim(l, vm.loop[l].dc2dc.loop_vtrim-1, vm.loop[l].dc2dc.loop_margin_low, &err);
    vm.loop[l].last_ac2dc_scaling_on_loop  = now;
    for (int h = l*HAMMERS_PER_LOOP; h < l*HAMMERS_PER_LOOP+HAMMERS_PER_LOOP;h++) {
       if (vm.hammer[h].asic_present) {
@@ -80,8 +80,7 @@ int loop_can_up(int l) {
   
   return  
     (vm.loop[l].enabled_loop &&
-    (vm.loop_vtrim[l] < VTRIM_HIGH) &&
-    (vm.loop_vtrim[l] < vm.loop[l].dc2dc.max_vtrim_currentwise) &&
+    (vm.loop[l].dc2dc.loop_vtrim < vm.loop[l].dc2dc.max_vtrim_currentwise) &&
     ((now - vm.loop[l].last_ac2dc_scaling_on_loop) > AC2DC_SCALING_SAME_LOOP_PERIOD_SECS));
  
 }
@@ -90,7 +89,7 @@ int loop_can_up(int l) {
 void loop_up(int l) {
   int err;  
   //printf("1\n");
-  dc2dc_set_vtrim(l, vm.loop_vtrim[l]+1, vm.loop_margin_low[l], &err);
+  dc2dc_set_vtrim(l, vm.loop[l].dc2dc.loop_vtrim+1, vm.loop[l].dc2dc.loop_margin_low, &err);
   vm.loop[l].last_ac2dc_scaling_on_loop  = now;
   //printf("3\n");
   psyslog( "LOOP UP:%d\n" , l);
@@ -252,8 +251,8 @@ void ac2dc_scaling_loop(int l) {
        (vm.loop[l].enabled_loop) &&
        (vm.cosecutive_jobs >= MIN_COSECUTIVE_JOBS_FOR_SCALING)) {
   
-   // int temperature_high = (vm.loop[l].asic_temp_sum / vm.loop[l].asic_count >= 113);
-   // int fully_utilized = (vm.loop[l].overheating_asics == 0); // h->freq_thermal_limit - h->freq
+    // int temperature_high = (vm.loop[l].asic_temp_sum / vm.loop[l].asic_count >= 113);
+    // int fully_utilized = (vm.loop[l].overheating_asics == 0); // h->freq_thermal_limit - h->freq
     int tmp_scaled=0;
    
    
@@ -262,7 +261,7 @@ void ac2dc_scaling_loop(int l) {
   
     
      // has unused freq - scale down.
-     if (vm.loop[l].overheating_asics >= 6) {
+     if (vm.loop[l].overheating_asics >= 4) {
         if (loop_can_down(l)) {
           psyslog( "LOOP DOWN:%d\n" , l);            
           changed = 1;
@@ -270,7 +269,7 @@ void ac2dc_scaling_loop(int l) {
           vm.ac2dc_power -= 2;
         }
      } else if ((vm.max_ac2dc_power - vm.ac2dc_power) > 5 &&
-                 (vm.loop[l].overheating_asics < 4) && 
+                 (vm.loop[l].overheating_asics < 3) && 
                  (vm.loop[l].crit_temp_downscale < 500)) {
     // scale up
       if (loop_can_up(l)) {          
@@ -278,6 +277,8 @@ void ac2dc_scaling_loop(int l) {
         changed = 1;
         loop_up(l);
         vm.ac2dc_power += 3;
+      } else {
+        printf( "LOOP can`t UP:%d\n" , l);
       }
     }    
   }

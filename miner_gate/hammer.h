@@ -277,8 +277,13 @@ typedef struct {
   int dc_current_limit_16s;   
   int dc_power_watts_16s;  
   int last_voltage_change_time;
-  
   int max_vtrim_currentwise;
+
+  //uint32_t loop_voltage;
+  uint32_t loop_vtrim;
+  bool loop_margin_low;  
+
+  
   // Guessing added current
 } DC2DC;
 
@@ -324,6 +329,9 @@ typedef struct {
   int fan_level;
   uint32_t good_loops;
 
+  int slow_corner;
+  int max_asic_temp;
+
   int mgmt_temp_max;
   int start_mine_time;
   // pll can be changed
@@ -367,10 +375,12 @@ typedef struct {
   int total_mhash; 
   int concecutive_bad_wins;
   uint32_t ac2dc_temp;
-  int work_mode; // 0 = slow, 1 = normal, 2 = turbo
+  //int work_mode; // 0 = slow, 1 = normal, 2 = turbo
   int max_fan_level;
+  int voltage_start;
   int vtrim_start;
   bool vmargin_start;
+  int voltage_max;
   int vtrim_max;
   int max_ac2dc_power; 
   int last_second_jobs;
@@ -388,8 +398,7 @@ typedef struct {
   
   // our loop and dc2dc data
   LOOP loop[LOOP_COUNT];
-  uint32_t loop_vtrim[LOOP_COUNT];
-  bool loop_margin_low[LOOP_COUNT];  
+ 
 
   WIN last_win;  
 } MINER_BOX;

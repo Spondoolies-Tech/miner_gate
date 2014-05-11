@@ -26,7 +26,7 @@ extern pthread_mutex_t i2cm;
 
 // XX in percent - 0 to 100
 // #define PWM_VALUE(XX)  (12000+XX*(320-120)) 
-#define PWM_VALUE(XX)  (12000+XX*(200))  // TODO - can go up to 250
+#define PWM_VALUE(XX)  (12000+XX*(250))  // TODO - can go up to 250
 //int pwm_values[] = { 12000 , 22000, 32000 };
 void init_pwm() {
   // cd /sys/devices/bone_capemgr.*
