@@ -36,13 +36,14 @@ int usage(char * app ,int exCode ,const char * errMsg = NULL)
         fprintf (stderr,"==================\n%s\n\n==================\n",errMsg);
     }
 
-    printf ("Usage: %s [-top|-bottom|-both|-l loops] -v value\n\n" , app);
+    printf ("Usage: %s [-top|-bottom|-both|-l loops] [-r | -v value]\n\n" , app);
 
     printf ("       -top       : top main board(default)\n");
     printf ("       -bottom    : bottom main board\n");
     printf ("       -both      : both top & bottom main boards (default)\n");
     printf ("       -l (hex)   : specify what loops to set (zero based, e.g. bottom board is 0x00FFF000 )\n");
-    printf ("       -v (dec): value to set into reg 0xD0 of DC2DC\n");
+    printf ("       -r 		   : read the value in reg 0xD0 of specified DC2DC\n");
+    printf ("       -v (dec)   : value to set into reg 0xD0 of DC2DC\n");
 
 
     if (0 == exCode) // exCode ==0 means - just print usage and get back to app for business. other value - exit with it.
@@ -64,6 +65,7 @@ int main(int argc, char *argv[])
 
 	bool callUsage = false;
 	bool badParm = false;
+	int ReadOrWrite = -1; // not set. read = 0 , write = 1
 
 	int topOrBottom = -1; // default will be TOP, start with -1, to rule out ambiguity.
 
@@ -100,13 +102,34 @@ int main(int argc, char *argv[])
 			  badParm = true;
 		  }
 		}
+		else if ( 0 == strcmp(argv[i],"-r")){
+
+			if (ReadOrWrite == -1 || ReadOrWrite == 0) //read, or not set yet
+			{
+				ReadOrWrite = 0;
+			}
+			else {
+				// both read and write ??
+				badParm = true;
+			}
+		}
 		else if ( 0 == strcmp(argv[i],"-v")){
 
-			sscanf(argv[++i],"%d",&dcr_set_value);
+			if (ReadOrWrite == -1 || ReadOrWrite == 1) //write, or not set yet
+			{
+				ReadOrWrite = 1;
 
-			if (0 > dcr_set_value){
-				fprintf(stderr,"CANT PARSE %s (dcr value) into positive integer\n",argv[i]);
-				badParm =  true;
+				sscanf(argv[++i],"%d",&dcr_set_value);
+
+				if (0 > dcr_set_value){
+					fprintf(stderr,"CANT PARSE %s (dcr value) into positive integer\n",argv[i]);
+					badParm =  true;
+				}
+
+			}
+			else {
+				// both read and write ??
+				badParm = true;
 			}
 		}
 		else if ( 0 == strcmp(argv[i],"-l")){
@@ -127,7 +150,7 @@ int main(int argc, char *argv[])
 		  badParm = true;
 		}
 	}
-	if (-1 == dcr_set_value && badParm == false){
+	if (-1 == dcr_set_value && badParm == false && ReadOrWrite == 1){
 		fprintf(stderr,"no set value given");
 		badParm =  true;
 	}
@@ -164,10 +187,18 @@ int main(int argc, char *argv[])
 
 		bool thisLoop = ( ((1 << i ) & LOOPSBITMASK ) == (1 << i));
 		if (thisLoop){
-			if (dc2dc_set_dcr_inductor_cat(i , dcr_set_value) != 0){
-				fprintf(stderr,"Failed to set group %d DC2DC DCR inductor flag %d\n",(i+1),dcr_set_value);
-				rc = rc | (1 << i) | 1; // the 1 will ensure failures.
-				//break;
+
+			if (ReadOrWrite == 1) {//
+
+				if (dc2dc_set_dcr_inductor_cat(i , dcr_set_value) != 0){
+					fprintf(stderr,"Failed to set group %d DC2DC DCR inductor flag %d\n",(i+1),dcr_set_value);
+					rc = rc | (1 << i) | 1; // the 1 will ensure failures.
+					//break;
+				}
+			}
+			else
+			{
+				fprintf (stdout , "DC2DC DCR inductor flag loop %d (0xD0) = %d\n",i, dc2dc_get_dcr_inductor_cat (i));
 			}
 		}
 	}

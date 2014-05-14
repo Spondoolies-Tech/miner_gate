@@ -69,7 +69,9 @@ void dc2dc_init_loop(int loop) {
 
     i2c_write_word(I2C_DC2DC, 0x35, 0xf028); 	// VIN ON
     i2c_write_word(I2C_DC2DC, 0x36, 0xf018); 	// VIN OFF(??)
-    vm.loop[loop].enabled_loop = 1;        
+#ifdef MINERGATE
+    vm.loop[loop].enabled_loop = 1;
+#endif
     if (dc2dc_inductor_type == 0) { 
       psyslog("Inductor type loop %d: 0x881f\n",loop);
       i2c_write_word(I2C_DC2DC, 0x38, 0x881f); 	// Inductor DCR
@@ -81,7 +83,9 @@ void dc2dc_init_loop(int loop) {
        i2c_write_word(I2C_DC2DC, 0x38, 0x8830);  // Inductor DCR
     } else { 
       psyslog("Error: Unknown inductor type %d\n", dc2dc_inductor_type);
+#ifdef MINERGATE
       vm.loop[loop].enabled_loop = 0;
+#endif
       //passert(0);
     }
     
@@ -181,6 +185,27 @@ static void dc2dc_select_i2c_ex(int top,          // 1 or 0
     i2c_write(I2C_DC2DC_SWITCH_GROUP1, 1 << dc2dc_offset, err); // TOP    
     i2c_write(I2C_DC2DC_SWITCH_GROUP0, 0);                 // TOP   
   }
+}
+int dc2dc_get_dcr_inductor_cat(int loop){
+	int rc = 0;
+	int err = 0;
+	//fprintf(stderr, "---> Entered dc2dc_set_dcr_inductor_cat %d %d\n", loop , value);
+	dc2dc_select_i2c(loop , &err);
+	if (0 != err) {
+		//fprintf(stderr, "LOOP %2d SELECT FAILED\n", loop);
+		return -1;
+	}
+
+	//fprintf(stderr, "writing %d to LOOP %2d \n", (uint16_t)(0xFFFF & value),loop );
+	usleep(1000);
+
+	rc = i2c_read_word(I2C_DC2DC , 0xD0  , &err);
+
+	if (0 != err) {
+		return -2;
+	}
+
+	return rc;
 }
 
 int dc2dc_set_dcr_inductor_cat(int loop,int value){
