@@ -102,7 +102,7 @@ uint8_t i2c_read_byte(uint8_t addr, uint8_t command, int *pError) {
 
   i2c_set_address(addr, pError);
   if (*pError != 0) {
-    //printf("i2c_read_byte(%d): call to i2c_set_address returned with err %d\n",__LINE__ , *pError);    
+    printf("i2c_read_byte(%d): call to i2c_set_address returned with err %d\n",__LINE__ , *pError);    
     psyslog(RED "i2c read byte 0x%x 0x%x error1\n" RESET, addr, command);
      passert(0);
   //  res = 0xFF;
@@ -116,7 +116,7 @@ uint8_t i2c_read_byte(uint8_t addr, uint8_t command, int *pError) {
     }
   }
   pthread_mutex_unlock(&i2cm);
-  //printf("i2c_read [%x:%x] = %x\n",addr,command ,res);
+  printf("i2c_read [%x:%x] = %x\n",addr,command ,res);
   return res;
 }
 
@@ -137,7 +137,7 @@ uint8_t i2c_waddr_read_byte(uint8_t addr, uint16_t dev_addr, int *pError) {
 
   i2c_set_address(addr, pError);
   if (*pError != 0) {
-    //printf("i2c_read_byte(%d): call to i2c_set_address returned with err %d\n",__LINE__ , *pError);
+    printf("i2c_read_byte(%d): call to i2c_set_address returned with err %d\n",__LINE__ , *pError);
     psyslog(RED "i2c read byte 0x%x 0x%x error1\n" RESET, addr, command);
      passert(0);
   //  res = 0xFF;
@@ -155,7 +155,7 @@ uint8_t i2c_waddr_read_byte(uint8_t addr, uint16_t dev_addr, int *pError) {
     }
   }
   pthread_mutex_unlock(&i2cm);
-  //printf("i2c_read [%x:%x] = %x\n",addr,command ,res);
+  printf("i2c_read [%x:%x] = %x\n",addr,command ,res);
   return res;
 }
 
@@ -219,7 +219,7 @@ uint16_t i2c_read_word(uint8_t addr, uint8_t command, int *pError) {
   //printf("i2c[%x:%x] -> %x\n",addr, command, r);
   // usleep(SLEEP_TIME_I2C);
   pthread_mutex_unlock(&i2cm);
-  //printf("i2c_read [%x:%x] = %x\n",addr,command ,r);
+  printf("i2c_read [%x:%x] = %x\n",addr,command ,r);
   return r;
 }
 

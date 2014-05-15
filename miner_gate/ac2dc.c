@@ -312,7 +312,7 @@ int update_ac2dc_power_measurments() {
   pthread_mutex_unlock(&i2c_mutex);  
 #else 
   if (vm.cosecutive_jobs >= MIN_COSECUTIVE_JOBS_FOR_AC2DC_MEASUREMENT) {
-     vm.ac2dc_power = (vm.dc2dc_total_power*1000/790)+60;;
+     vm.ac2dc_power = (vm.dc2dc_total_power*1000/790)+60;
   } else {
      vm.ac2dc_power = 0;
   }
