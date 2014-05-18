@@ -56,36 +56,17 @@ static int ac2dc_get_power() {
 
   //do_stupid_i2c_workaround();
   r = i2c_read_word(mgmt_addr[ac2dc_type], AC2DC_I2C_READ_POUT_WORD, &err);
-  r = i2c_read_word(mgmt_addr[ac2dc_type], AC2DC_I2C_READ_POUT_WORD, &err);
-  r = i2c_read_word(mgmt_addr[ac2dc_type], AC2DC_I2C_READ_POUT_WORD, &err);
-  r = i2c_read_word(mgmt_addr[ac2dc_type], AC2DC_I2C_READ_POUT_WORD, &err);
-  r = i2c_read_word(mgmt_addr[ac2dc_type], AC2DC_I2C_READ_POUT_WORD, &err);
-  r = i2c_read_word(mgmt_addr[ac2dc_type], AC2DC_I2C_READ_POUT_WORD, &err);
-  r = i2c_read_word(mgmt_addr[ac2dc_type], AC2DC_I2C_READ_POUT_WORD, &err);
-  r = i2c_read_word(mgmt_addr[ac2dc_type], AC2DC_I2C_READ_POUT_WORD, &err);
-  r = i2c_read_word(mgmt_addr[ac2dc_type], AC2DC_I2C_READ_POUT_WORD, &err);
-  r = i2c_read_word(mgmt_addr[ac2dc_type], AC2DC_I2C_READ_POUT_WORD, &err);
-  r = i2c_read_word(mgmt_addr[ac2dc_type], AC2DC_I2C_READ_POUT_WORD, &err);
-  r = i2c_read_word(mgmt_addr[ac2dc_type], AC2DC_I2C_READ_POUT_WORD, &err);
-  r = i2c_read_word(mgmt_addr[ac2dc_type], AC2DC_I2C_READ_POUT_WORD, &err);
-  r = i2c_read_word(mgmt_addr[ac2dc_type], AC2DC_I2C_READ_POUT_WORD, &err);
-  r = i2c_read_word(mgmt_addr[ac2dc_type], AC2DC_I2C_READ_POUT_WORD, &err);
-  r = i2c_read_word(mgmt_addr[ac2dc_type], AC2DC_I2C_READ_POUT_WORD, &err);
-  r = i2c_read_word(mgmt_addr[ac2dc_type], AC2DC_I2C_READ_POUT_WORD, &err);
 
   if (err) {
-/*    psyslog("RESET I2C BUS?\n");
+    psyslog("RESET I2C BUS?\n");
     system("echo 111 > /sys/class/gpio/export");
     system("echo out > /sys/class/gpio/gpio111/direction");
     system("echo 0 > /sys/class/gpio/gpio111/value");
     usleep(1000000);
-    system("echo 111 > /sys/class/gpio/export"); */
+    system("echo 111 > /sys/class/gpio/export");
     passert(0);
   }
   int power = ac2dc_getint(r); //TODOZ
-
-  fprintf(stderr,"AC2DC Power %d (i2c val=%d)\n" , power , r);
-
 
   if (err) {
     if ((warned++) < 10)
@@ -356,7 +337,6 @@ void reset_i2c() {
 #ifdef MINERGATE
 int update_ac2dc_power_measurments() {
 #if AC2DC_BUG == 0
-	fprintf(stderr,"REAL update_ac2dc_power_measurments");
   int err;
   static int counter = 0;
   counter++;
@@ -374,7 +354,6 @@ int update_ac2dc_power_measurments() {
   i2c_write(PRIMARY_I2C_SWITCH, PRIMARY_I2C_SWITCH_AC2DC_PIN | PRIMARY_I2C_SWITCH_DEAULT);  
   pthread_mutex_unlock(&i2c_mutex);  
 #else 
-  printf(stderr,"FAKGE update_ac2dc_power_measurments");
   if (vm.cosecutive_jobs >= MIN_COSECUTIVE_JOBS_FOR_AC2DC_MEASUREMENT) {
      vm.ac2dc_power = (vm.dc2dc_total_power*1000/790)+60;;
   } else {
