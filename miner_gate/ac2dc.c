@@ -56,16 +56,36 @@ static int ac2dc_get_power() {
 
   //do_stupid_i2c_workaround();
   r = i2c_read_word(mgmt_addr[ac2dc_type], AC2DC_I2C_READ_POUT_WORD, &err);
+  r = i2c_read_word(mgmt_addr[ac2dc_type], AC2DC_I2C_READ_POUT_WORD, &err);
+  r = i2c_read_word(mgmt_addr[ac2dc_type], AC2DC_I2C_READ_POUT_WORD, &err);
+  r = i2c_read_word(mgmt_addr[ac2dc_type], AC2DC_I2C_READ_POUT_WORD, &err);
+  r = i2c_read_word(mgmt_addr[ac2dc_type], AC2DC_I2C_READ_POUT_WORD, &err);
+  r = i2c_read_word(mgmt_addr[ac2dc_type], AC2DC_I2C_READ_POUT_WORD, &err);
+  r = i2c_read_word(mgmt_addr[ac2dc_type], AC2DC_I2C_READ_POUT_WORD, &err);
+  r = i2c_read_word(mgmt_addr[ac2dc_type], AC2DC_I2C_READ_POUT_WORD, &err);
+  r = i2c_read_word(mgmt_addr[ac2dc_type], AC2DC_I2C_READ_POUT_WORD, &err);
+  r = i2c_read_word(mgmt_addr[ac2dc_type], AC2DC_I2C_READ_POUT_WORD, &err);
+  r = i2c_read_word(mgmt_addr[ac2dc_type], AC2DC_I2C_READ_POUT_WORD, &err);
+  r = i2c_read_word(mgmt_addr[ac2dc_type], AC2DC_I2C_READ_POUT_WORD, &err);
+  r = i2c_read_word(mgmt_addr[ac2dc_type], AC2DC_I2C_READ_POUT_WORD, &err);
+  r = i2c_read_word(mgmt_addr[ac2dc_type], AC2DC_I2C_READ_POUT_WORD, &err);
+  r = i2c_read_word(mgmt_addr[ac2dc_type], AC2DC_I2C_READ_POUT_WORD, &err);
+  r = i2c_read_word(mgmt_addr[ac2dc_type], AC2DC_I2C_READ_POUT_WORD, &err);
+  r = i2c_read_word(mgmt_addr[ac2dc_type], AC2DC_I2C_READ_POUT_WORD, &err);
+
   if (err) {
-    psyslog("RESET I2C BUS?\n");
+/*    psyslog("RESET I2C BUS?\n");
     system("echo 111 > /sys/class/gpio/export");
     system("echo out > /sys/class/gpio/gpio111/direction");
     system("echo 0 > /sys/class/gpio/gpio111/value");
     usleep(1000000);
-    system("echo 111 > /sys/class/gpio/export");
+    system("echo 111 > /sys/class/gpio/export"); */
     passert(0);
   }
   int power = ac2dc_getint(r); //TODOZ
+
+  fprintf(stderr,"AC2DC Power %d (i2c val=%d)\n" , power , r);
+
 
   if (err) {
     if ((warned++) < 10)
@@ -86,19 +106,25 @@ void ac2dc_init(int* input_voltage) {
   i2c_write(PRIMARY_I2C_SWITCH, PRIMARY_I2C_SWITCH_AC2DC_PIN | PRIMARY_I2C_SWITCH_DEAULT);
   int res = i2c_read_word(AC2DC_EMERSON_I2C_MGMT_DEVICE, AC2DC_I2C_READ_TEMP1_WORD, &err);
   if (!err) {
+#ifdef MINERGATE
     psyslog("EMERSON 1000 AC2DC LOCATED\n");
+#endif
     ac2dc_type = 1;
   } else {
     // NOT EMERSON 1000
     res = i2c_read_word(AC2DC_EMERSON_1200_I2C_MGMT_DEVICE, AC2DC_I2C_READ_TEMP1_WORD, &err);
     if (!err) {
-      psyslog("EMERSON 1200 AC2DC LOCATED\n");
+#ifdef MINERGATE
+    	psyslog("EMERSON 1200 AC2DC LOCATED\n");
+#endif
       ac2dc_type = 2;
     } else {
       // NOT EMERSON 1200
       res = i2c_read_word(AC2DC_MURATA_I2C_MGMT_DEVICE, AC2DC_I2C_READ_TEMP1_WORD, &err);
       if (!err) {
+#ifdef MINERGATE
        psyslog("MURATA AC2DC LOCATED\n");
+#endif
        ac2dc_type = 0;
       } else {
         // NOT MURATA 1200
@@ -110,7 +136,10 @@ void ac2dc_init(int* input_voltage) {
   
   *input_voltage = i2c_read_word(mgmt_addr[ac2dc_type], AC2DC_I2C_READ_VIN_WORD, &err);
   *input_voltage = ac2dc_getint(*input_voltage)/1000;
+
+#ifdef MINERGATE
   psyslog("INPUT VOLTAGE=%d\n", *input_voltage);
+#endif
 
  
   i2c_write(PRIMARY_I2C_SWITCH, PRIMARY_I2C_SWITCH_DEAULT);
@@ -158,6 +187,7 @@ int ac2dc_get_vpd(ac2dc_vpd_info_t *pVpd) {
 
 	int rc = 0;
 	int err = 0;
+
   int pnr_offset = 0x34;
   int pnr_size = 15;
   int model_offset = 0x57;
@@ -167,6 +197,38 @@ int ac2dc_get_vpd(ac2dc_vpd_info_t *pVpd) {
   int revision_offset = 0x61;
   int revision_size = 2;
 
+
+  if (ac2dc_type == 0) // MURATA
+  {
+	  pnr_offset = 0x1D;
+	  pnr_size = 21;
+	  model_offset = 0x16;
+	  model_size = 6;
+	  serial_offset = 0x34;
+	  serial_size = 12;
+	  revision_offset = 0x3a;
+	  revision_size = 2;
+  }else if (ac2dc_type == 2) // EMRSN1200
+  {
+	  /*
+	   *
+5 (0x2c , 0x30) Vendor ID
+12 (0x32, 0x3d) Product Name
+12 (0x3F , 0x4A ) Product NR
+2  (0x4c ,0x4d) REV
+13 (0x4f , 0x5B)SNR
+	   *
+	   */
+	  pnr_offset = 0x3F;
+	  pnr_size = 12;
+	  model_offset = 0x3F;
+	  model_size = 12;
+	  serial_offset = 0x4f;
+	  serial_size = 13;
+	  revision_offset = 0x4c;
+	  revision_size = 2;
+
+  }
 
   if (NULL == pVpd) {
     psyslog("call ac2dc_get_vpd performed without allocating sturcture first\n");
@@ -294,6 +356,7 @@ void reset_i2c() {
 #ifdef MINERGATE
 int update_ac2dc_power_measurments() {
 #if AC2DC_BUG == 0
+	fprintf(stderr,"REAL update_ac2dc_power_measurments");
   int err;
   static int counter = 0;
   counter++;
@@ -311,6 +374,7 @@ int update_ac2dc_power_measurments() {
   i2c_write(PRIMARY_I2C_SWITCH, PRIMARY_I2C_SWITCH_AC2DC_PIN | PRIMARY_I2C_SWITCH_DEAULT);  
   pthread_mutex_unlock(&i2c_mutex);  
 #else 
+  printf(stderr,"FAKGE update_ac2dc_power_measurments");
   if (vm.cosecutive_jobs >= MIN_COSECUTIVE_JOBS_FOR_AC2DC_MEASUREMENT) {
      vm.ac2dc_power = (vm.dc2dc_total_power*1000/790)+60;;
   } else {

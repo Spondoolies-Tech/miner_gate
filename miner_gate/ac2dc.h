@@ -17,15 +17,14 @@
 unsigned char ac2dc_get_eeprom_quick(int offset, int *pError = 0);
 
 typedef struct {
-  unsigned char pnr[16];
-  unsigned char model[5];
-  unsigned char revision[3];
-  unsigned char serial[11]; // WW[2]+SER[4]+REV[2]+PLANT[2]
+  unsigned char pnr[32];
+  unsigned char model[32];
+  unsigned char revision[32];
+  unsigned char serial[32]; // WW[2]+SER[4]+REV[2]+PLANT[2]
 } ac2dc_vpd_info_t;
 
 int ac2dc_get_vpd(ac2dc_vpd_info_t *pVpd);
 int update_ac2dc_power_measurments();
 void ac2dc_init(int *input_voltage);
-
 
 #endif
