@@ -20,7 +20,7 @@
 #include <getopt.h>
 #include <fcntl.h>
 #include <sys/ioctl.h>
-#include <linux/types.h>
+#include <linux/types.h> 
 #include <linux/spi/spidev.h>
 #include <netinet/in.h>
 #include "queue.h"
@@ -40,7 +40,7 @@
 static int now; // cahce time
 extern int kill_app;
 
-int loop_can_down(int l) {
+int  loop_can_down(int l) {
   if (l == -1)
       return 0;
   

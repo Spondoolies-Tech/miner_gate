@@ -1357,7 +1357,7 @@ void *i2c_state_machine_nrt(void *p) {
 
 
       // Every 10 seconds save "mining" status
-      if ((counter % (48*10)) ==  0)  {
+      if ((counter % (48*20)) ==  0)  {
         if (vm.cosecutive_jobs > 0) {
           ping_watchdog();
         }
