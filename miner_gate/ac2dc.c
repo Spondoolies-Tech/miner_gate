@@ -84,7 +84,11 @@ static int ac2dc_get_power() {
 
 void ac2dc_init(int* input_voltage) {
   int err;
-  i2c_write(PRIMARY_I2C_SWITCH, PRIMARY_I2C_SWITCH_AC2DC_PIN | PRIMARY_I2C_SWITCH_DEAULT);
+  i2c_write(PRIMARY_I2C_SWITCH, PRIMARY_I2C_SWITCH_AC2DC_PIN | PRIMARY_I2C_SWITCH_DEAULT, &err);
+  if (err) {
+    psyslog("GENERAL I2C ERROR. EXIT\n");
+    assert(0);
+  }
   int res = i2c_read_word(AC2DC_EMERSON_I2C_MGMT_DEVICE, AC2DC_I2C_READ_TEMP1_WORD, &err);
   if (!err) {
 #ifdef MINERGATE
