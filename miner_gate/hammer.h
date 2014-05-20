@@ -359,8 +359,9 @@ typedef struct {
 
   // bollean flag to change PLLS
   int pll_changed;
+#ifdef NO_PEAKS  
   int slow_asic_start;
-
+#endif
   // jobs right one after another
   int cosecutive_jobs;
 
@@ -398,7 +399,7 @@ typedef struct {
   
   // our loop and dc2dc data
   LOOP loop[LOOP_COUNT];
- 
+  int overcurrent_loops;
 
   WIN last_win;  
 } MINER_BOX;

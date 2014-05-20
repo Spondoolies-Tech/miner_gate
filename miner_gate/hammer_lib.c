@@ -315,18 +315,24 @@ void push_to_hw_queue_rt(RT_JOB *work) {
   //passert(work->work_id_in_hw < 0x100);
   write_reg_broadcast(ADDR_JOB_ID, work->work_id_in_hw);
   //write_reg_broadcast(ADDR_COMMAND, BIT_CMD_END_JOB_IF_Q_FULL);
+#ifdef NO_PEAKS    
   if (vm.slow_asic_start == 1) {
-    for (int i = 0; i < HAMMERS_COUNT; i++ ) {
-      HAMMER *h = &vm.hammer[i];
-      if (h->asic_present) {
-        write_reg_device(i,ADDR_COMMAND, BIT_CMD_LOAD_JOB);
-        flush_spi_write();
-      }
+    for (int i = 0; i < HAMMERS_PER_LOOP; i++ ) {
+       for (int j = 0; j < LOOP_COUNT; j++ ) {
+          HAMMER *h = &vm.hammer[i+j*HAMMERS_PER_LOOP];
+          if (h->asic_present) {
+            write_reg_device(i+j*HAMMERS_PER_LOOP,ADDR_COMMAND, BIT_CMD_LOAD_JOB);
+          }
+       }
     }
+    flush_spi_write();
     vm.slow_asic_start = 0;
   } else {
     write_reg_broadcast(ADDR_COMMAND, BIT_CMD_LOAD_JOB);
   }
+#else
+  write_reg_broadcast(ADDR_COMMAND, BIT_CMD_LOAD_JOB);
+#endif
   flush_spi_write();
 }
 
@@ -637,28 +643,30 @@ int do_bist_ok_rt(int long_bist) {
   // Choose random bist.
   static int bist_id = 0;
 
-
-
   int poll_counter = 0;
+  int failed = 0;
      
   // Enter BIST mode
+#ifdef NO_PEAKS
   write_reg_broadcast(ADDR_COMMAND, BIT_CMD_END_JOB);
-  write_reg_broadcast(ADDR_COMMAND, BIT_CMD_END_JOB);
-  write_reg_broadcast(ADDR_CONTROL_SET1, BIT_CTRL_BIST_MODE);  
-  poll_counter = 0;
-  int failed = 0;
-
-
-/*
-  for (int i = 0; i < HAMMERS_COUNT; i++ ) {
-    HAMMER *h = &vm.hammer[i];
-    if (h->asic_present) {
-      write_reg_device(i,ADDR_COMMAND, BIT_CMD_END_JOB);
-      write_reg_device(i,ADDR_COMMAND, BIT_CMD_END_JOB);
-      flush_spi_write();
+  // write_reg_broadcast(ADDR_COMMAND, BIT_CMD_END_JOB);
+  for (int i = 0; i < HAMMERS_PER_LOOP; i++ ) {
+    for (int j = 0; j < LOOP_COUNT; j++ ) {
+       HAMMER *h = &vm.hammer[i+j*HAMMERS_PER_LOOP];
+       if (h->asic_present) {
+         write_reg_device(i+j*HAMMERS_PER_LOOP,ADDR_COMMAND, BIT_CMD_END_JOB);
+         //write_reg_device(i+j*HAMMERS_PER_LOOP,ADDR_COMMAND, BIT_CMD_END_JOB);
+       }
     }
-  }
-*/  
+  } 
+#else
+  write_reg_broadcast(ADDR_COMMAND, BIT_CMD_END_JOB);
+  write_reg_broadcast(ADDR_COMMAND, BIT_CMD_END_JOB);
+#endif
+  write_reg_broadcast(ADDR_CONTROL_SET1, BIT_CTRL_BIST_MODE);  
+  flush_spi_write();
+
+ 
 
    // Give BIST jobc
    write_reg_broadcast(ADDR_BIST_NONCE_START, bist_tests[bist_id].nonce_winner - 20000); 
@@ -677,19 +685,21 @@ int do_bist_ok_rt(int long_bist) {
    write_reg_broadcast(ADDR_DIFFICULTY, bist_tests[bist_id].difficulty);
    write_reg_broadcast(ADDR_WIN_LEADING_0, bist_tests[bist_id].leading);
    write_reg_broadcast(ADDR_JOB_ID, 0xEE);
-   write_reg_broadcast(ADDR_COMMAND, BIT_CMD_LOAD_JOB);
+   //write_reg_broadcast(ADDR_COMMAND, BIT_CMD_LOAD_JOB);
    flush_spi_write();
    bist_id = (bist_id+1)%TOTAL_BISTS;
 
-/*
-   for (int i = 0; i < HAMMERS_COUNT; i++ ) {
-      HAMMER *h = &vm.hammer[i];
-      if (h->asic_present) {
-        write_reg_device(i,ADDR_COMMAND, BIT_CMD_LOAD_JOB);
-        flush_spi_write();
-      }
-    } 
-*/   
+
+   for (int i = 0; i < HAMMERS_PER_LOOP; i++ ) {
+     for (int j = 0; j < LOOP_COUNT; j++ ) {
+        HAMMER *h = &vm.hammer[i+j*HAMMERS_PER_LOOP];
+        if (h->asic_present) {
+          write_reg_device(i+j*HAMMERS_PER_LOOP,ADDR_COMMAND, BIT_CMD_LOAD_JOB);
+        }
+     }
+     flush_spi_write();
+   } 
+  
   
   
    int i = 0;
@@ -724,9 +734,6 @@ int do_bist_ok_rt(int long_bist) {
   write_reg_broadcast(ADDR_INTR_CLEAR, BIT_INTR_WIN);
   //printf("polls=%d, bist_id=%d\n", i,bist_id);
  
-
- 
-
   uint32_t single_win_test;
 #if 0  
   if (1) {
@@ -737,10 +744,11 @@ int do_bist_ok_rt(int long_bist) {
   // Exit BIST
   //passert(read_reg_broadcast(ADDR_BR_WIN));
   
- 
   write_reg_broadcast(ADDR_CONTROL_SET0, BIT_CTRL_BIST_MODE);
   write_reg_broadcast(ADDR_WIN_LEADING_0, vm.cur_leading_zeroes);
-  //vm.slow_asic_start = 1;
+#ifdef NO_PEAKS   
+  vm.slow_asic_start = 1;
+#endif
   flush_spi_write();
   return failed;
 }
@@ -889,7 +897,12 @@ int update_vm_with_currents_and_temperatures_nrt() {
       write_spi(ADDR_SQUID_LOOP_BYPASS, (~(vm.good_loops))&0xFFFFFF);
       pthread_mutex_unlock(&hammer_mutex);
       vm.loop[loop].enabled_loop = 0;
+      vm.overcurrent_loops++;
       dc2dc_disable_dc2dc(loop, &err);
+      if (vm.overcurrent_loops > 3) {
+        psyslog("TOO MANY OC LOOPS, EXITING\n");
+        exit_nicely(5);
+      }
       // Disable DC2DC
     }
   }
@@ -1132,6 +1145,9 @@ void push_job_to_hw_rt() {
       vm.cosecutive_jobs++;
     }
   } else {
+#ifdef NO_PEAKS    
+    vm.slow_asic_start = 1;
+#endif
     if (vm.cosecutive_jobs > 0) {
       vm.cosecutive_jobs--;
     }

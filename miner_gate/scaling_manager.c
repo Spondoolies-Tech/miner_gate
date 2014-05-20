@@ -69,6 +69,9 @@ void pause_all_mining_engines() {
   //passert(vm.asics_shut_down_powersave == 0);
   int some_asics_busy = read_reg_broadcast(ADDR_BR_CONDUCTOR_BUSY);
   set_fan_level(0);
+#ifdef NO_PEAKS    
+  vm.slow_asic_start = 1;
+#endif  
   /*
   while(some_asics_busy != 0) {
     int addr = BROADCAST_READ_ADDR(some_asics_busy);

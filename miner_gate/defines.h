@@ -15,7 +15,7 @@
 // compilation flags
 #define TEST_BOARD 0
 #define ECONOMY 0
-
+//#define NO_PEAKS 
 
 // System parameters
 // Above this not allowed
@@ -37,7 +37,7 @@
 #define MIN_COSECUTIVE_JOBS_FOR_DC2DC_MEASUREMENT MIN_COSECUTIVE_JOBS_FOR_SCALING
 
 // In seconds
-#define BIST_PERIOD_SECS                              15 
+#define BIST_PERIOD_SECS                              20 
 #define MAX_LEADING_ZEROES                            62
 
 #define TRY_ASIC_FREQ_INCREASE_PERIOD_SECS 2
