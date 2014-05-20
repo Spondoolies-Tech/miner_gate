@@ -129,8 +129,23 @@ int loop_iter_next_enabled(loop_iter *e) {
 
 void stop_all_work_rt() {
   // wait to finish real time queue requests
+#ifdef NO_PEAKS    
+  write_reg_broadcast(ADDR_COMMAND, BIT_CMD_END_JOB_IF_Q_FULL);
+  flush_spi_write();
+  for (int i = 0; i < HAMMERS_PER_LOOP; i++ ) {
+    for (int j = 0; j < LOOP_COUNT; j++ ) {
+       HAMMER *h = &vm.hammer[i+j*HAMMERS_PER_LOOP];
+       if (h->asic_present) {
+         write_reg_device(i+j*HAMMERS_PER_LOOP,ADDR_COMMAND, BIT_CMD_END_JOB);
+         //write_reg_device(i+j*HAMMERS_PER_LOOP,ADDR_COMMAND, BIT_CMD_END_JOB);
+       }
+    }
+  } 
+  vm.slow_asic_start = 1;
+#else   
   write_reg_broadcast(ADDR_COMMAND, BIT_CMD_END_JOB);
   write_reg_broadcast(ADDR_COMMAND, BIT_CMD_END_JOB);
+#endif  
   //usleep(100);
   RT_JOB work;
 
@@ -648,7 +663,8 @@ int do_bist_ok_rt(int long_bist) {
      
   // Enter BIST mode
 #ifdef NO_PEAKS
-  write_reg_broadcast(ADDR_COMMAND, BIT_CMD_END_JOB);
+  write_reg_broadcast(ADDR_COMMAND, BIT_CMD_END_JOB_IF_Q_FULL);
+  flush_spi_write();
   // write_reg_broadcast(ADDR_COMMAND, BIT_CMD_END_JOB);
   for (int i = 0; i < HAMMERS_PER_LOOP; i++ ) {
     for (int j = 0; j < LOOP_COUNT; j++ ) {
@@ -659,6 +675,7 @@ int do_bist_ok_rt(int long_bist) {
        }
     }
   } 
+  vm.slow_asic_start = 1;
 #else
   write_reg_broadcast(ADDR_COMMAND, BIT_CMD_END_JOB);
   write_reg_broadcast(ADDR_COMMAND, BIT_CMD_END_JOB);
@@ -746,9 +763,6 @@ int do_bist_ok_rt(int long_bist) {
   
   write_reg_broadcast(ADDR_CONTROL_SET0, BIT_CTRL_BIST_MODE);
   write_reg_broadcast(ADDR_WIN_LEADING_0, vm.cur_leading_zeroes);
-#ifdef NO_PEAKS   
-  vm.slow_asic_start = 1;
-#endif
   flush_spi_write();
   return failed;
 }

@@ -117,7 +117,7 @@ void discover_good_loops() {
       vm.loop[i].dc2dc.max_vtrim_currentwise = vm.vtrim_max;
       vm.loop[i].dc2dc.loop_vtrim = vm.vtrim_start;
       vm.loop[i].dc2dc.loop_margin_low = vm.vmargin_start;
-      vm.loop[i].dc2dc.dc_current_limit_16s = DC2DC_INITIAL_CURRENT_16S;
+      vm.loop[i].dc2dc.dc_current_limit_16s = vm.max_dc2dc_current_16s;
       good_loops |= 1 << i;
       ret++;
     } else {

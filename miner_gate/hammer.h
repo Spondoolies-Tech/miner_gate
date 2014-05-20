@@ -384,6 +384,7 @@ typedef struct {
   int voltage_max;
   int vtrim_max;
   int max_ac2dc_power; 
+  int max_dc2dc_current_16s;   
   int last_second_jobs;
   int cur_leading_zeroes;
   // We give less LZ then needed to do faster scaling.
