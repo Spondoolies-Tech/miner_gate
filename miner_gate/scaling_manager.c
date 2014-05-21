@@ -69,6 +69,9 @@ void pause_all_mining_engines() {
   //passert(vm.asics_shut_down_powersave == 0);
   int some_asics_busy = read_reg_broadcast(ADDR_BR_CONDUCTOR_BUSY);
   set_fan_level(0);
+#ifdef NO_PEAKS    
+  vm.slow_asic_start = 1;
+#endif  
   /*
   while(some_asics_busy != 0) {
     int addr = BROADCAST_READ_ADDR(some_asics_busy);
@@ -229,7 +232,7 @@ void print_scaling() {
           VTRIM_TO_VOLTAGE_MILLI(vm.loop[hi.l].dc2dc.loop_vtrim),
           dc2dc->dc_power_watts_16s/16,
           
-        ((dc2dc->dc_current_16s>=DC2DC_INITIAL_CURRENT_16S - 1*16)?RED:GREEN), dc2dc->dc_current_16s/16,GREEN,
+        ((dc2dc->dc_current_16s>=vm.max_dc2dc_current_16s - 1*16)?RED:GREEN), dc2dc->dc_current_16s/16,GREEN,
         ((dc2dc->dc_temp>=DC2DC_TEMP_GREEN_LINE)?RED:GREEN), dc2dc->dc_temp,GREEN,
         
           vm.loop[hi.l].crit_temp_downscale,

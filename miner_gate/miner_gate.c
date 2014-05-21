@@ -121,7 +121,7 @@ int read_work_mode(int input_voltage) {
 	int i = 0;
   passert(file > 0);
   vm.vmargin_start = true;	
-	fscanf (file, "%d %d %d %d", &vm.max_fan_level, &vm.voltage_start, &vm.voltage_max, &vm.max_ac2dc_power); 
+	fscanf (file, "%d %d %d %d %d", &vm.max_fan_level, &vm.voltage_start, &vm.voltage_max, &vm.max_ac2dc_power, &vm.max_dc2dc_current_16s);
   assert(vm.max_fan_level <= 100);
   assert(vm.max_fan_level >= 0);    
   assert(vm.voltage_start <= 790);
@@ -131,6 +131,10 @@ int read_work_mode(int input_voltage) {
   assert(vm.voltage_max   >= vm.voltage_start);
   assert(vm.max_ac2dc_power   >= 1000);
   assert(vm.max_ac2dc_power   <= AC2DC_POWER_LIMIT);
+  if ((vm.max_dc2dc_current_16s   > 65) || (vm.max_dc2dc_current_16s   < 50)) {
+    vm.max_dc2dc_current_16s = 61;
+  }
+  vm.max_dc2dc_current_16s *= 16;
   fclose (file);
 
   vm.vtrim_start = VOLTAGE_TO_VTRIM_MILLI(vm.voltage_start);

@@ -89,8 +89,8 @@ void dc2dc_init_loop(int loop) {
       //passert(0);
     }
     
-    i2c_write_word(I2C_DC2DC, 0x46, 0xf84D); 	// OC Fault
-    i2c_write_word(I2C_DC2DC, 0x4a, 0xf848); 	// OC warn
+    i2c_write_word(I2C_DC2DC, 0x46, 0xf84F); 	// OC Fault
+    i2c_write_word(I2C_DC2DC, 0x4a, 0xf84A); 	// OC warn
     i2c_write_byte(I2C_DC2DC, 0x47, 0x3C);		// OC fault response
     i2c_write_byte(I2C_DC2DC, 0xd7, 0x03);		// PG limits
     i2c_write_byte(I2C_DC2DC, 0x02, 0x02);		// ON/OFF conditions
