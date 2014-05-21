@@ -144,11 +144,15 @@ int main(int argc, char* argv[])
     for (i = 0; i < array_size; i++) { // walk the jobs
        responces++;
        minergate_do_job_rsp* work = mp_rsp->rsp+i;
-       if (work->winner_nonce) {
-         //printf("!!!GOT minergate job rsp %08x %08x\n",work->work_id_in_sw,work->winner_nonce);
+       if (work->winner_nonce[0]) {
          int job_difficulty = 1<<(leading_zeroes-32); // in 4GH units
          rate += job_difficulty;
        }
+       if (work->winner_nonce[1]) {
+         int job_difficulty = 1<<(leading_zeroes-32); // in 4GH units
+         rate += job_difficulty;
+       }
+
     }
 
    

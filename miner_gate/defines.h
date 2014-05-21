@@ -15,7 +15,7 @@
 // compilation flags
 #define TEST_BOARD 0
 #define ECONOMY 0
-#define NO_PEAKS 
+//#define NO_PEAKS 
 
 // System parameters
 // Above this not allowed
