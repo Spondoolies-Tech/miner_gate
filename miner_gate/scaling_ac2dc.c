@@ -226,12 +226,8 @@ void set_working_voltage_discover_top_speeds() {
   // All remember BIST they failed!
   for (int h =0; h < HAMMERS_COUNT ; h++) {
     if (vm.hammer[h].asic_present) {
-      /*
-       vm.hammer[h].freq_hw = (ASIC_FREQ)(vm.hammer[h].freq_hw - 1);
-       vm.hammer[h].freq_wanted = (ASIC_FREQ)(vm.hammer[h].freq_wanted - 1);
-       vm.hammer[h].freq_thermal_limit = (ASIC_FREQ)(vm.hammer[h].freq_thermal_limit - 1);
-       vm.hammer[h].freq_bist_limit = (ASIC_FREQ)(vm.hammer[h].freq_bist_limit - 1);      
-       */
+       vm.hammer[h].freq_wanted = (ASIC_FREQ)(vm.hammer[h].freq_wanted + 1);
+       vm.hammer[h].freq_bist_limit = (ASIC_FREQ)(vm.hammer[h].freq_bist_limit + 1);    
        vm.hammer[h].passed_last_bist_engines = ALL_ENGINES_BITMASK;
     }
   }

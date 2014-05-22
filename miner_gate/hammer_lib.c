@@ -487,11 +487,10 @@ int get_print_win(int winner_device) {
   winner_id = winner_id & 0xFF;
   RT_JOB *work_in_hw = peak_rt_queue(winner_id);
 
-  if ((work_in_hw->work_state == WORK_STATE_HAS_JOB) &&
-      (work_in_hw->winner_nonce == 0)) {
-    struct timeval tv;
-    if (winner_nonce != 0) {
-/*
+  if ((winner_nonce != 0) &&
+      (work_in_hw->work_state == WORK_STATE_HAS_JOB) &&
+      ((work_in_hw->winner_nonce[0] == 0) || (work_in_hw->winner_nonce[1] == 0))) {
+#if 0  
     memcpy((const unsigned char*)vm.last_win.midstate, (const unsigned char*)work_in_hw->midstate, sizeof(work_in_hw->midstate));   
     vm.last_win.mrkle_root = work_in_hw->mrkle_root;
     vm.last_win.timestamp = work_in_hw->timestamp;
@@ -499,7 +498,7 @@ int get_print_win(int winner_device) {
     vm.last_win.winner_nonce = winner_nonce;    
     vm.last_win.winner_engine = engine_id;    
     vm.last_win.winner_device = winner_device;
-  */
+#endif
   
 #if 0   
    static unsigned char hash[32];
@@ -513,37 +512,40 @@ int get_print_win(int winner_device) {
        hash);
    //memprint((void*)hash, 32);
    int leading_zeroes = get_leading_zeroes(hash);
-   //DBG(DBG_WINS,"Win leading Zeroes: %d\n", leading_zeroes);
+   DBG(DBG_WINS,"Win leading Zeroes: %d\n", leading_zeroes);
    if (leading_zeroes < 30) {
       psyslog("FP on %d loop %d (Lz=%x)\n", winner_device, winner_device/HAMMERS_PER_LOOP, leading_zeroes);
       vm.false_positives_total++;
       // delete win and down ASIC
-      work_in_hw->winner_nonce = 0;
-      vm.hammer[winner_device].passed_last_bist_engines &= 0x7EFE;
+      winner_nonce = 0;
+      //vm.hammer[winner_device].passed_last_bist_engines &= 0x7EFE;
    } else if (leading_zeroes < vm.cur_leading_zeroes) {
       // not real win.
       //printf("Fake win\n");
-      work_in_hw->winner_nonce = 0;
+      winner_nonce = 0;
    } else {
-      work_in_hw->winner_nonce = winner_nonce;
+      //work_in_hw->winner_nonce = winner_nonce;
       //printf("Win %d\n", winner_id);
    }
    //end_stopper(&tv, "Win compute");
 #endif      
-    //printf("Win\n");
-    
-    work_in_hw->winner_nonce = winner_nonce;
-    if (work_in_hw->ntime_offset) {
-      work_in_hw->timestamp = ntohl(ntohl(work_in_hw->timestamp) - work_in_hw->ntime_offset);  
+    if (work_in_hw->winner_nonce[0] == 0) {
+      work_in_hw->winner_nonce[0] = winner_nonce;
+	  if (work_in_hw->ntime_offset) {
+         work_in_hw->timestamp = ntohl(ntohl(work_in_hw->timestamp) - work_in_hw->ntime_offset);  
+      }
+    } else {
+      work_in_hw->winner_nonce[1] = winner_nonce;
     }
+    
+    
     // Push wins imediatly
-    push_work_rsp(work_in_hw);
+    //push_work_rsp(work_in_hw);
     vm.concecutive_bad_wins = 0;
-   }
   } else {
     psyslog( "!!!!!  Warning !!!!: Win orphan job 0x%x or double win, nonce1=0x%x  , nonce=0x%x!!!\n" ,
       winner_id,  
-      work_in_hw->winner_nonce,
+      work_in_hw->winner_nonce[1],
       winner_nonce);
     vm.concecutive_bad_wins++;
     if (vm.concecutive_bad_wins > 300) {
@@ -1289,7 +1291,6 @@ void *i2c_state_machine_nrt(void *p) {
   int counter = 0;
   for (;;) {
     counter++;
-    // Takes DC2DC 10 minutes to settle
     if (((counter%4)==0)) {
       update_vm_with_currents_and_temperatures_nrt();
       if (kill_app) {
@@ -1302,8 +1303,8 @@ void *i2c_state_machine_nrt(void *p) {
            leds_periodic_quater_second();
       }
 
-/*
-       if(vm.last_win.winner_nonce) {
+#if 0
+      if(vm.last_win.winner_nonce) {
          static unsigned char hash[32];
          compute_hash((const unsigned char*)vm.last_win.midstate,
                        SWAP32(vm.last_win.mrkle_root),
@@ -1313,21 +1314,18 @@ void *i2c_state_machine_nrt(void *p) {
                        hash);
         int leading_zeroes = get_leading_zeroes(hash);    
         int winner_device = vm.last_win.winner_device;
-        if (leading_zeroes < 30) {
-           psyslog("!!!!!! FP on %d[%d] loop %d (Lz=%x)\n", 
+        DBG(DBG_WINS,"Win leading Zeroes: %d\n", leading_zeroes);
+        if (leading_zeroes < 15) {
+           psyslog("!!!!!!!! FP on %d[%d] loop %d (Lz=%x)\n", 
                     winner_device,vm.last_win.winner_engine, winner_device/HAMMERS_PER_LOOP, leading_zeroes);
            vm.false_positives_total++;
            // down ASICTreat it like failed BIST
            vm.hammer[winner_device].passed_last_bist_engines &= 0x7EFE;
-        } else if (leading_zeroes < vm.cur_leading_zeroes) {
-        } else {
         }
         vm.last_win.winner_nonce  = 0;
         vm.last_win.winner_device = 0;
       }
-      */
-
-
+#endif
     }
 
   

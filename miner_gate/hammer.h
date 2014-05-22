@@ -222,8 +222,8 @@ typedef struct {
   uint32_t timestamp; // BIG ENDIAN !!
   uint32_t mrkle_root;
   uint32_t midstate[8];
-  uint32_t winner_nonce; // 0 means no nonce. This means we loose 0.00000000001%
-                         // results. Fuck it.
+  uint32_t winner_nonce[2]; // 0 means no nonce. This means we loose 0.00000000001%
+                            // results.
   // uint32_t work_state;
   // uint32_t nonce;
   uint8_t ntime_max;

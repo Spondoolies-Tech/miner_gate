@@ -208,7 +208,8 @@ void push_work_rsp(RT_JOB *work) {
   }
   int i;
   r.mrkle_root = work->mrkle_root;
-  r.winner_nonce = work->winner_nonce;
+  r.winner_nonce[0] = work->winner_nonce[0];
+  r.winner_nonce[1] = work->winner_nonce[1];  
   r.work_id_in_sw = work->work_id_in_sw;
   r.ntime_offset = work->ntime_offset;
   r.res = 0;
@@ -230,7 +231,8 @@ int pull_work_req_adapter(RT_JOB *w, minergate_adapter *a) {
     w->adapter_id = a->adapter_id;
     w->mrkle_root = r.mrkle_root;
     w->timestamp = r.timestamp;
-    w->winner_nonce = 0;
+    w->winner_nonce[0] = 0;
+    w->winner_nonce[1] = 0;    
     w->work_id_in_sw = r.work_id_in_sw;
     w->work_state = 0;
     w->leading_zeroes = r.leading_zeroes;
@@ -274,7 +276,8 @@ void push_work_req(minergate_do_job_req *req, minergate_adapter *a) {
   if (a->work_minergate_req.size() >= (MINERGATE_TOTAL_QUEUE - 10)) {
     minergate_do_job_rsp rsp;
     rsp.mrkle_root = req->mrkle_root;
-    rsp.winner_nonce = 0;
+    rsp.winner_nonce[0] = 0;
+    rsp.winner_nonce[1] = 0;    
     rsp.ntime_offset = req->ntime_offset;    
     rsp.work_id_in_sw = req->work_id_in_sw;
     rsp.res = 1;
