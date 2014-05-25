@@ -59,11 +59,14 @@ static int ac2dc_get_power() {
 
   if (err) {
     psyslog("RESET I2C BUS?\n");
+    /*    
     system("echo 111 > /sys/class/gpio/export");
     system("echo out > /sys/class/gpio/gpio111/direction");
     system("echo 0 > /sys/class/gpio/gpio111/value");
+    system("echo 1 > /sys/class/gpio/gpio111/value");
     usleep(1000000);
-    system("echo 111 > /sys/class/gpio/export");
+    system("echo 111 > /sys/class/gpio/unexport");
+    */
     passert(0);
   }
   int power = ac2dc_getint(r); //TODOZ
@@ -340,7 +343,14 @@ void reset_i2c() {
 
 #ifdef MINERGATE
 int update_ac2dc_power_measurments() {
-#if AC2DC_BUG == 0
+#ifdef NO_AC2DC_I2C
+  if (vm.cosecutive_jobs >= MIN_COSECUTIVE_JOBS_FOR_AC2DC_MEASUREMENT) {
+     vm.ac2dc_power = (vm.dc2dc_total_power*1000/790)+60;
+  } else {
+     vm.ac2dc_power = 0;
+  }  
+#else 
+  printf("i2c ac2dc|");
   int err;
   static int counter = 0;
   counter++;
@@ -352,17 +362,18 @@ int update_ac2dc_power_measurments() {
   //int power = power_guessed;
   if (vm.cosecutive_jobs >= MIN_COSECUTIVE_JOBS_FOR_AC2DC_MEASUREMENT) {
       vm.ac2dc_power = ac2dc_get_power()/1000;
+      vm.ac2dc_power = ac2dc_get_power()/1000;
+      vm.ac2dc_power = ac2dc_get_power()/1000;
+      vm.ac2dc_power = ac2dc_get_power()/1000;
+      vm.ac2dc_power = ac2dc_get_power()/1000;
+      vm.ac2dc_power = ac2dc_get_power()/1000;
+      vm.ac2dc_power = ac2dc_get_power()/1000;      
     } else {
       vm.ac2dc_power = 0;
     }
   i2c_write(PRIMARY_I2C_SWITCH, PRIMARY_I2C_SWITCH_AC2DC_PIN | PRIMARY_I2C_SWITCH_DEAULT);  
-  pthread_mutex_unlock(&i2c_mutex);  
-#else 
-  if (vm.cosecutive_jobs >= MIN_COSECUTIVE_JOBS_FOR_AC2DC_MEASUREMENT) {
-     vm.ac2dc_power = (vm.dc2dc_total_power*1000/790)+60;
-  } else {
-     vm.ac2dc_power = 0;
-  }
+  pthread_mutex_unlock(&i2c_mutex);
+
 #endif
   return 0;
 }

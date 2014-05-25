@@ -18,6 +18,7 @@
 #include "hammer_lib.h"
 #include "squid.h"
 #include "pll.h"
+#include <time.h>
 
 
 void enable_voltage_freq(ASIC_FREQ f) {
@@ -110,6 +111,7 @@ void discover_good_loops() {
  
   for (i = 0; i < LOOP_COUNT; i++) {
     vm.loop[i].id = i;
+    vm.loop[i].dc2dc.last_downscale_time = time(NULL);
     unsigned int bypass_loops = (~(1 << i) & 0xFFFFFF);
     write_spi(ADDR_SQUID_LOOP_BYPASS, bypass_loops);
     if (vm.loop[i].enabled_loop && test_serial(i)) {

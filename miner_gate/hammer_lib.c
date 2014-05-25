@@ -576,8 +576,6 @@ void fill_random_work(RT_JOB *work) {
  //work_in_queue->winner_nonce
 }*/
 
-void init_scaling();
-
 int init_hammers() {
   int i;
   // enable_reg_debug = 1;
@@ -859,7 +857,7 @@ void once_second_tasks_rt() {
 // RUN FROM DIFFERENT THREAD
 int loop_can_down(int l);
 void loop_down(int l);
-
+void asic_down_completly(HAMMER *a);
 
 int update_vm_with_currents_and_temperatures_nrt() {
   static int counter = 0;
@@ -876,28 +874,36 @@ int update_vm_with_currents_and_temperatures_nrt() {
     update_dc2dc_current_temp_measurments(loop, &overcurrent, &oc_warning); 
     critical_current = (vm.loop[loop].dc2dc.dc_current_16s > vm.loop[loop].dc2dc.dc_current_limit_16s);
     if (critical_current || oc_warning) {
-      printf(RED "CRITICAL CURRENT detected %d on loop %d\n" RESET,
-                  vm.loop[loop].dc2dc.dc_current_16s ,loop);  
-  
-      int l = loop;
-
-      if (loop_can_down(l)) {
-       if (vm.loop[l].dc2dc.loop_vtrim > VTRIM_MIN) {       
-          vm.loop[l].dc2dc.max_vtrim_currentwise = vm.loop[l].dc2dc.loop_vtrim-1;
-       }
-       loop_down(l);
-      }
-      for (int h = l*HAMMERS_PER_LOOP; h < l*HAMMERS_PER_LOOP+HAMMERS_PER_LOOP;h++) {
-        if (vm.hammer[h].asic_present) {
-            // learn again
-            if (vm.hammer[h].freq_wanted >= (ASIC_FREQ)(MINIMAL_ASIC_FREQ+2)) {
-              vm.hammer[h].freq_wanted = (ASIC_FREQ)(vm.hammer[h].freq_wanted-2);
-              vm.needs_scaling = 1;
-            }
+#ifndef FIXED_VOLTAGE
+        psyslog(RED "CRITICAL CURRENT detected %d on loop %d\n" RESET,
+                    vm.loop[loop].dc2dc.dc_current_16s ,loop);  
+        if (time(NULL) - vm.loop[loop].dc2dc.last_downscale_time < 3) {
+          psyslog("No downscale, too fast\n");
+        } else {
+          int l = loop;
+          if (loop_can_down(l)) {
+           if (vm.loop[l].dc2dc.loop_vtrim > VTRIM_MIN) {       
+              vm.loop[l].dc2dc.max_vtrim_currentwise = vm.loop[l].dc2dc.loop_vtrim-1;
+           }
+           loop_down(l);
+           vm.loop[l].down_scale_type += (oc_warning)?0x10:1; 
+           vm.loop[l].dc2dc.last_downscale_time = time(NULL);
+           vm.needs_scaling = 1;
           }
-       }
-    }
 
+          for (int h = l*HAMMERS_PER_LOOP; h < l*HAMMERS_PER_LOOP+HAMMERS_PER_LOOP;h++) {
+            if (vm.hammer[h].asic_present) {
+                // learn again
+                asic_down_completly(&vm.hammer[h]);
+                break;
+            }
+           }
+      }
+#else // FIXED VOLTAGE
+       // 1) Find fastest ASIC
+       // 2) Downscale it
+#endif        
+    }
 
     if (overcurrent) {
       psyslog("DC2DC ERROR STAGE0, disabling loop! %d\n", loop);
@@ -917,7 +923,7 @@ int update_vm_with_currents_and_temperatures_nrt() {
       dc2dc_disable_dc2dc(loop, &err);
       if (vm.overcurrent_loops > 3) {
         psyslog("TOO MANY OC LOOPS, EXITING\n");
-        exit_nicely(5);
+        //exit_nicely(5);
       }
       // Disable DC2DC
     }
