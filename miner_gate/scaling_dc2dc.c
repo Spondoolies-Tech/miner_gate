@@ -122,18 +122,13 @@ int asic_can_up(HAMMER *a, int force) {
   return 1;
 }
 void asic_up(HAMMER *a) {
-   if(a->freq_wanted < MAX_ASIC_FREQ) {
+   if(a->freq_wanted < a->freq_thermal_limit) {
      ASIC_FREQ wanted_freq = (ASIC_FREQ)(a->freq_wanted+1);
      a->freq_wanted = wanted_freq;
-     //set_pll(a->address, wanted_freq);       
      a->last_freq_change_time = now;
      vm.loop[a->loop_address].dc2dc.dc_current_16s += 4;
-//   vm.loop[a->loop_address].dc2dc.dc_current_16s_arr[0] += 4;
-//   vm.loop[a->loop_address].dc2dc.dc_current_16s_arr[1] += 4;
-//   vm.loop[a->loop_address].dc2dc.dc_current_16s_arr[2] += 4;
-//   vm.loop[a->loop_address].dc2dc.dc_current_16s_arr[3] += 4;
-   vm.ac2dc_power++;
-   vm.needs_scaling = 1;
+     vm.ac2dc_power++;
+     vm.needs_scaling = 1;
    }
 }
 
@@ -152,12 +147,6 @@ void asic_down_completly(HAMMER *a) {
    //set_pll(a->address, wanted_freq);       
    a->last_freq_change_time = now;
    a->agressivly_scale_up = 1;
-/*
-   vm.loop[a->loop_address].dc2dc.dc_current_16s -= fdiff;
-   vm.loop[a->loop_address].dc2dc.dc_current_16s_arr[0] -= fdiff;
-   vm.loop[a->loop_address].dc2dc.dc_current_16s_arr[1] -= fdiff;
-   vm.loop[a->loop_address].dc2dc.dc_current_16s_arr[2] -= fdiff;
-*/
   vm.needs_scaling = 1;
 
    
@@ -169,17 +158,8 @@ void asic_up_fast(HAMMER *a) {
    ASIC_FREQ wanted_freq = a->freq_thermal_limit;
    int fdiff = 4 * ( a->freq_thermal_limit - a->freq_wanted);
    a->freq_wanted=a->freq_thermal_limit;
-
    vm.loop[a->loop_address].dc2dc.dc_current_16s += fdiff;
-   /*
-   vm.loop[a->loop_address].dc2dc.dc_current_16s_arr[0] += fdiff;
-   vm.loop[a->loop_address].dc2dc.dc_current_16s_arr[1] += fdiff;
-   vm.loop[a->loop_address].dc2dc.dc_current_16s_arr[2] += fdiff;
-   vm.loop[a->loop_address].dc2dc.dc_current_16s_arr[3] += fdiff;
-   */
    vm.ac2dc_power+=fdiff/8;
-
-   
    //set_pll(a->address, wanted_freq);        
    a->last_freq_change_time = now;  
    vm.needs_scaling = 1;
@@ -454,33 +434,30 @@ void asic_frequency_update_nrt(int verbal) {
               vm.needs_scaling = 1;
             }
           }
-     
-           h->passed_last_bist_engines = ALL_ENGINES_BITMASK;
+          h->passed_last_bist_engines = ALL_ENGINES_BITMASK;
         } 
 
 
         if (h->asic_temp >= vm.max_asic_temp ) {
           if(h->freq_wanted > MINIMAL_ASIC_FREQ) {
              // let it cool off
-             //printf("TOO HOT:%x\n",h->address);
              h->freq_thermal_limit = (ASIC_FREQ)(h->freq_thermal_limit - 1);
              vm.loop[h->loop_address].crit_temp_downscale++;
              h->last_down_freq_change_time = now;
              asic_down_completly(h);
            }
-         } else if (h->agressivly_scale_up && asic_can_up(h,0) && (upped_fast==0)) {
-            if (vm.loop[l].dc2dc.dc_current_16s < vm.loop[l].dc2dc.dc_current_limit_16s - 16*1) {
-                upped_fast++;
-                //printf(MAGENTA "UPPER FAST WITH %d\n", h->address);
-                asic_up_fast(h);
-                changed++;
-           } else {
-               //printf(MAGENTA "UPPER NORMAL WITH %d", h->address);
-               asic_up(h);
+         } else if (asic_can_up(h,0)) {
+           if (upped_fast<3) {
+              upped_fast++;
+              if (h->agressivly_scale_up) {
+                  asic_up_fast(h);
+                  changed++;
+               } else {
+                   asic_up(h);
+               }
            }
          }
-      // try upscale 1 asic in loop
-      }
+      }         
 
       if (vm.loop[l].dc2dc.dc_current_16s < vm.loop[l].dc2dc.dc_current_limit_16s - 10) {
          if (time_from_last_call > 4) {

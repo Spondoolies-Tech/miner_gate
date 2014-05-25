@@ -225,7 +225,7 @@ void print_scaling() {
         fprintf(f,  
           GREEN RESET "\n%2d|%4x(%4x)|%3d|%2d|"  
           "%s%2d%s|%s%3d%s|"   
-          "%3d|%2d|%2d" , 
+          "%3x|%2d|%2d" , 
           hi.l, 
           vm.loop[hi.l].dc2dc.loop_vtrim&0xffff,
           vm.loop[hi.l].dc2dc.max_vtrim_currentwise&0xffff,
@@ -235,7 +235,7 @@ void print_scaling() {
         ((dc2dc->dc_current_16s>=vm.max_dc2dc_current_16s - 1*16)?RED:GREEN), dc2dc->dc_current_16s/16,GREEN,
         ((dc2dc->dc_temp>=DC2DC_TEMP_GREEN_LINE)?RED:GREEN), dc2dc->dc_temp,GREEN,
         
-          vm.loop[hi.l].crit_temp_downscale,
+          vm.loop[hi.l].down_scale_type,
           vm.loop[hi.l].asic_hz_sum*15/1000,
           vm.loop[hi.l].overheating_asics
           );

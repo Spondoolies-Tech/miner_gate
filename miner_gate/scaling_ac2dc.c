@@ -53,7 +53,7 @@ int  loop_can_down(int l) {
 void loop_down(int l) {
   int err;
    //printf("vtrim=%x\n",vm.loop[l].dc2dc.loop_vtrim);
-   psyslog( "LOOP DOWN:%d\n" , l);
+   psyslog(BLUE "LOOP DOWN:%d\n" RESET, l);
    dc2dc_set_vtrim(l, vm.loop[l].dc2dc.loop_vtrim-1, vm.loop[l].dc2dc.loop_margin_low, &err);
    vm.loop[l].last_ac2dc_scaling_on_loop  = now;
    for (int h = l*HAMMERS_PER_LOOP; h < l*HAMMERS_PER_LOOP+HAMMERS_PER_LOOP;h++) {
@@ -92,7 +92,7 @@ void loop_up(int l) {
   dc2dc_set_vtrim(l, vm.loop[l].dc2dc.loop_vtrim+1, vm.loop[l].dc2dc.loop_margin_low, &err);
   vm.loop[l].last_ac2dc_scaling_on_loop  = now;
   //printf("3\n");
-  psyslog( "LOOP UP:%d\n" , l);
+  psyslog(BLUE "LOOP UP:%d\n" RESET, l);
   for (int h = l*HAMMERS_PER_LOOP; h< l*HAMMERS_PER_LOOP+HAMMERS_PER_LOOP;h++) {
     if (vm.hammer[h].asic_present) {
           // if the limit is bist limit, then let asic grow a bit more
@@ -101,7 +101,7 @@ void loop_up(int l) {
             vm.hammer[h].freq_thermal_limit = vm.hammer[h].freq_bist_limit = 
               (vm.hammer[h].freq_bist_limit < MAX_ASIC_FREQ-2)?((ASIC_FREQ)(vm.hammer[h].freq_bist_limit+2)):(MAX_ASIC_FREQ-1); 
           }
-          vm.hammer[h].agressivly_scale_up = true;
+          //vm.hammer[h].agressivly_scale_up = true;
         } 
     }
    vm.last_bist_state_machine = BIST_SM_DO_SCALING;

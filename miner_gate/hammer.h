@@ -278,7 +278,7 @@ typedef struct {
   int dc_power_watts_16s;  
   int last_voltage_change_time;
   int max_vtrim_currentwise;
-
+  unsigned int last_downscale_time;
   //uint32_t loop_voltage;
   uint32_t loop_vtrim;
   bool loop_margin_low;  
@@ -295,6 +295,8 @@ typedef struct {
   int     asic_temp_sum; // if asics disabled or missing give them fake temp
   int     asic_hz_sum; // if asics disabled or missing give them fake temp
   int overheating_asics;
+  int down_scale_type;
+  
   int asics_failing_bist;
   int asic_count;
   int crit_temp_downscale;

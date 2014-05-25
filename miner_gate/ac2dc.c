@@ -62,8 +62,9 @@ static int ac2dc_get_power() {
     system("echo 111 > /sys/class/gpio/export");
     system("echo out > /sys/class/gpio/gpio111/direction");
     system("echo 0 > /sys/class/gpio/gpio111/value");
+    system("echo 1 > /sys/class/gpio/gpio111/value");
     usleep(1000000);
-    system("echo 111 > /sys/class/gpio/export");
+    system("echo 111 > /sys/class/gpio/unexport");
     */
     passert(0);
   }

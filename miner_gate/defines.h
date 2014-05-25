@@ -102,5 +102,6 @@
 
 #define NO_AC2DC_I2C
 #define IDLE_TIME_TO_PAUSE_ENGINES 30
+#define FIXED_VOLTAGE
 
 #endif

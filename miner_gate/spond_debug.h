@@ -15,6 +15,7 @@
 #include <assert.h>
 #include <syslog.h>
 #include <sys/time.h>
+#include <time.h>
 
 #define DBG_NET 0
 #define DBG_WINS 1
@@ -66,6 +67,7 @@
   
 #define psyslog(X...)                                                          \
   {                                                                            \
+    printf("%d:", time(NULL));                                                 \
     syslog(LOG_WARNING, X);                                                    \
     printf(X);                                                                 \
   }
