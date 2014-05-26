@@ -72,3 +72,26 @@ void end_stopper(struct timeval *tv, const char *name) {
   usec += (end.tv_usec - tv->tv_usec);
   psyslog("%s took %d\n", name, usec);
 }
+
+
+void mg_event(unsigned char *s) {
+	FILE *f = fopen("/tmp/mg_event", "w");
+    if (!f) {
+      psyslog("Failed to create watchdog file\n");
+      return;
+    }
+    fprintf(f, "%s\n", s);
+    fclose(f);
+}
+
+void mg_status(unsigned char *s) {
+	FILE *f = fopen("/tmp/mg_status", "w");
+    if (!f) {
+      psyslog("Failed to create watchdog file\n");
+      return;
+    }
+    fprintf(f, "%s\n", s);
+    fclose(f);
+
+}
+

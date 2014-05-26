@@ -169,7 +169,7 @@ int asic_frequency_update_nrt_fast() {
       int passed = h->passed_last_bist_engines;        
       if ((passed == ALL_ENGINES_BITMASK)) {
           //PASSED BIST
-          printf("P:%d[%d] ", h->address, h->freq_wanted*15+210);
+          //printf("P:%d[%d] ", h->address, h->freq_wanted*15+210);
           one_ok = 1;
           h->freq_wanted = (ASIC_FREQ)(h->freq_wanted+1);
           /*
@@ -184,7 +184,7 @@ int asic_frequency_update_nrt_fast() {
           set_pll(h->address, h->freq_wanted);
       } else if (h->freq_wanted == ASIC_FREQ_225) {
           // FAILED BIST at FREQ 225
-          printf("X:%d[%d] (%x)", h->address, h->freq_wanted*15+210, passed);
+          //printf("X:%d[%d] (%x)", h->address, h->freq_wanted*15+210, passed);
           h->working_engines = h->working_engines&passed;
           one_ok = 1;
           h->freq_wanted = (ASIC_FREQ)(h->freq_wanted+1);
@@ -193,7 +193,7 @@ int asic_frequency_update_nrt_fast() {
           set_pll(h->address, h->freq_wanted);
       } else {
           // take one before last BIST.
-          printf("F:%d[%d] (%x)", h->address, h->freq_wanted*15+210, passed);
+          //printf("F:%d[%d] (%x)", h->address, h->freq_wanted*15+210, passed);
           // Keep it one above :)
           h->freq_wanted = (ASIC_FREQ)(h->freq_wanted-1);
           h->freq_thermal_limit = h->freq_wanted;

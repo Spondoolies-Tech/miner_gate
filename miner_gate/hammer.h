@@ -268,6 +268,12 @@ typedef struct {
   uint8_t can_scale_up;
 } HAMMER;
 
+#define INDUCTOR_TYPE_WURTH_REGULAR    0
+#define INDUCTOR_TYPE_WURTH_DEV        1
+#define INDUCTOR_TYPE_VISHAY           2
+#define INDUCTOR_TYPE_WURTH_DEV_2      3
+
+
 // 24 dc2dc
 typedef struct {
   uint8_t dc_temp;
@@ -282,18 +288,20 @@ typedef struct {
   //uint32_t loop_voltage;
   uint32_t loop_vtrim;
   bool loop_margin_low;  
+  int inductor_type;
 
   
   // Guessing added current
 } DC2DC;
+
 
 typedef struct {
   uint8_t id;
   // Last time ac2dc scaling changed limit.
   int last_ac2dc_scaling_on_loop;
   uint8_t enabled_loop;
-  int     asic_temp_sum; // if asics disabled or missing give them fake temp
-  int     asic_hz_sum; // if asics disabled or missing give them fake temp
+  int asic_temp_sum; // if asics disabled or missing give them fake temp
+  int asic_hz_sum; // if asics disabled or missing give them fake temp
   int overheating_asics;
   int down_scale_type;
   
@@ -361,16 +369,14 @@ typedef struct {
 
   // bollean flag to change PLLS
   int pll_changed;
-#ifdef NO_PEAKS  
   int slow_asic_start;
-#endif
   // jobs right one after another
   int cosecutive_jobs;
 
   int bist_fatal_err;  
   int bist_current;  
   int bist_voltage;  
-
+  int serial_errors;
  
   // ac2dc current and temperature
   int ac2dc_power;  // in ampers. 0 = bad reading.

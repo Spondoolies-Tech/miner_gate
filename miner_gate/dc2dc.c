@@ -49,7 +49,6 @@ static void dc2dc_set_channel(int channel_mask, int *err);
 // not locked
 void dc2dc_init_loop(int loop) {
     int err;
-    int dc2dc_inductor_type;
     assert(loop < LOOP_COUNT);
     assert(loop >= 0);
     dc2dc_select_i2c(loop, &err);
@@ -65,38 +64,47 @@ void dc2dc_init_loop(int loop) {
       dc2dc_i2c_close();
       return;
     }
-    dc2dc_inductor_type = i2c_read_word(I2C_DC2DC, 0xD0);  
+    vm.loop[loop].dc2dc.inductor_type = i2c_read_word(I2C_DC2DC, 0xD0);  
 
     i2c_write_word(I2C_DC2DC, 0x35, 0xf028); 	// VIN ON
     i2c_write_word(I2C_DC2DC, 0x36, 0xf018); 	// VIN OFF(??)
 #ifdef MINERGATE
     vm.loop[loop].enabled_loop = 1;
 #endif
-    if (dc2dc_inductor_type == 0) { 
+    if (vm.loop[loop].dc2dc.inductor_type == INDUCTOR_TYPE_WURTH_REGULAR) { 
       psyslog("Inductor type loop %d: 0x881f\n",loop);
       i2c_write_word(I2C_DC2DC, 0x38, 0x881f); 	// Inductor DCR
-    } else if (dc2dc_inductor_type == 1) {
+    } else if (vm.loop[loop].dc2dc.inductor_type == INDUCTOR_TYPE_WURTH_DEV) {
       psyslog("Inductor type loop %d: 0x8835\n",loop);
-      i2c_write_word(I2C_DC2DC, 0x38, 0x8835);  // Inductor DCR
-    } else if (dc2dc_inductor_type == 2) {
+      i2c_write_word(I2C_DC2DC, 0x38, 0x8835);  // Inductor DCR 8835
+    } else if (vm.loop[loop].dc2dc.inductor_type == INDUCTOR_TYPE_VISHAY) {
        psyslog("Inductor type loop %d: 0x8830\n",loop);
        i2c_write_word(I2C_DC2DC, 0x38, 0x8830);  // Inductor DCR
-    } else { 
-      psyslog("Error: Unknown inductor type %d\n", dc2dc_inductor_type);
+    } else if (vm.loop[loop].dc2dc.inductor_type == INDUCTOR_TYPE_WURTH_DEV_2) {
+       psyslog("Inductor type loop %d: 0x881a\n",loop);
+       i2c_write_word(I2C_DC2DC, 0x38, 0x881a);  // Inductor DCR
+    }else { 
+      psyslog("Error: Unknown inductor type %d\n", vm.loop[loop].dc2dc.inductor_type);
 #ifdef MINERGATE
       vm.loop[loop].enabled_loop = 0;
 #endif
       //passert(0);
     }
-    
-    i2c_write_word(I2C_DC2DC, 0x46, 0xf864); 	// OC Fault
-    i2c_write_word(I2C_DC2DC, 0x4a, 0xf854); 	// OC warn
+
+    if (vm.loop[loop].dc2dc.inductor_type == INDUCTOR_TYPE_WURTH_DEV) {
+      i2c_write_word(I2C_DC2DC, 0x4a, 0xf850); 	// OC warn
+      i2c_write_word(I2C_DC2DC, 0x46, 0xf864); 	// OC Faultsss      
+    } else {
+      i2c_write_word(I2C_DC2DC, 0x4a, 0xf856); 	// OC warn    
+      i2c_write_word(I2C_DC2DC, 0x46, 0xf860); 	// OC Faultsss      
+    }
+
     i2c_write_byte(I2C_DC2DC, 0x47, 0x3C);		// OC fault response
     i2c_write_byte(I2C_DC2DC, 0xd7, 0x03);		// PG limits
     i2c_write_byte(I2C_DC2DC, 0x02, 0x02);		// ON/OFF conditions
 
     //i2c_write(I2C_DC2DC, 0x15);
-    //usleep(1000);
+    //usleep(50000);
     i2c_write(I2C_DC2DC, 0x03);
     dc2dc_i2c_close();
 }
@@ -339,7 +347,7 @@ int update_dc2dc_current_temp_measurments(int loop, int* overcurrent, int* overc
     if (!vm.asics_shut_down_powersave) {
         int current = dc2dc_get_current_16s_of_amper(i, overcurrent, overcurrent_warning , &vm.loop[i].dc2dc.dc_temp , &err);
         if (*overcurrent != 0){
-        	psyslog("DC2DC OC ERROR in LOOP %d !!\n", loop);
+        	psyslog(RED "DC2DC OC ERROR in LOOP %d !!" RESET, loop);
 /*
         	psyslog("... last 4 previous measures of DC2DC %d !!\n", loop);
         	psyslog("...   %d\n", vm.loop[i].dc2dc.dc_current_16s_arr[0]);
@@ -347,7 +355,7 @@ int update_dc2dc_current_temp_measurments(int loop, int* overcurrent, int* overc
         	psyslog("...   %d\n", vm.loop[i].dc2dc.dc_current_16s_arr[2]);
         	psyslog("...   %d\n", vm.loop[i].dc2dc.dc_current_16s_arr[3]);
 */
-        	psyslog("...   current measure is %d\n", current);
+        	psyslog(RED "...   current measure is %d\n" RESET, current);
         }
 
 //        vm.loop[i].dc2dc.dc_current_16s_arr[vm.loop[i].dc2dc.dc_current_16s_arr_ptr]= current;

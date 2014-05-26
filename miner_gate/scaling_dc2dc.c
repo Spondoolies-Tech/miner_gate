@@ -303,16 +303,26 @@ void maybe_change_freqs_nrt() {
         continue;
      }
 
-     
+     /*
      if (vm.loop[l].dc2dc.dc_current_16s > vm.loop[l].dc2dc.dc_current_limit_16s) {
-       if (vm.loop[l].dc2dc.loop_vtrim > VTRIM_MIN) {       
-           vm.loop[l].dc2dc.max_vtrim_currentwise = vm.loop[l].dc2dc.loop_vtrim-1;
+       if (vm.loop[l].dc2dc.loop_vtrim > VTRIM_MIN) {
+         if (time(NULL) - vm.loop[l].dc2dc.last_downscale_time < 3) {
+            psyslog("No downscale, too fast\n");
+         } else {
+            psyslog(RED "DOWNSCALE1 vm.loop[%d].dc2dc.loop_vtrim %d/%d\n" RESET, l,
+            vm.loop[l].dc2dc.dc_current_16s, vm.loop[l].dc2dc.dc_current_limit_16s);
+            if (vm.loop[l].dc2dc.loop_vtrim > VTRIM_MIN) {       
+              vm.loop[l].dc2dc.max_vtrim_currentwise = vm.loop[l].dc2dc.loop_vtrim-1;
+            }
+            vm.loop[l].dc2dc.last_downscale_time = time(NULL);
+            vm.needs_scaling = 1;
+         }
        }
        loop_down(l);
 		//critical_downscale = 1;
        printf("Current critical %d!\n", l);
      }
-  
+         */
      
      if (vm.loop[l].enabled_loop) {
        vm.loop[l].overheating_asics = 0;

@@ -98,8 +98,8 @@ void set_pll(int addr, ASIC_FREQ freq) {
   write_reg_device(addr, ADDR_PLL_CONFIG, pll_config);
   write_reg_device(addr, ADDR_PLL_ENABLE, 0x0);
   write_reg_device(addr, ADDR_PLL_ENABLE, 0x1);
+  //printf("Set pll[%d] %x->%x\n", addr,vm.hammer[addr].freq_hw,freq);
   vm.hammer[addr].freq_hw = freq;
-  //printf("Sett pll %x", addr);
 }
 
 void disable_asic_forever_rt(int addr) {

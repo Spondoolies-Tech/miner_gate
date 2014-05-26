@@ -68,10 +68,8 @@ void pause_all_mining_engines() {
   int err;
   //passert(vm.asics_shut_down_powersave == 0);
   int some_asics_busy = read_reg_broadcast(ADDR_BR_CONDUCTOR_BUSY);
-  set_fan_level(0);
-#ifdef NO_PEAKS    
+  set_fan_level(0);    
   vm.slow_asic_start = 1;
-#endif  
   /*
   while(some_asics_busy != 0) {
     int addr = BROADCAST_READ_ADDR(some_asics_busy);
@@ -92,9 +90,7 @@ void unpause_all_mining_engines() {
   psyslog("Got mining request, enable DC2DC!\n");
   set_fan_level(vm.max_fan_level);  
   vm.not_mining_time = 0;
-  
   //enable_good_engines_all_asics_ok();
-  
   psyslog("Got mining request, waking up done!\n");
   vm.asics_shut_down_powersave = 0;
 }
@@ -258,9 +254,9 @@ void print_scaling() {
     fprintf(f, GREEN RESET "|%3d:%s%3dc%s %s%3dhz%s(%2d/%2d)%s %x" GREEN RESET "%3d", 
       hi.addr,
       (hi.a->asic_temp>=vm.max_asic_temp-1)?((hi.a->asic_temp>=vm.max_asic_temp)?RED:YELLOW):GREEN,((hi.a->asic_temp*6)+77),GREEN,
-       ((hi.a->freq_wanted>=ASIC_FREQ_540)? (MAGENTA) : ((hi.a->freq_wanted<=ASIC_FREQ_510)?(CYAN):(YELLOW))), hi.a->freq_wanted*15+210,GREEN,
-       hi.a->freq_thermal_limit-hi.a->freq_wanted,
-       hi.a->freq_bist_limit-hi.a->freq_wanted, 
+       ((hi.a->freq_hw>=ASIC_FREQ_540)? (MAGENTA) : ((hi.a->freq_hw<=ASIC_FREQ_510)?(CYAN):(YELLOW))), hi.a->freq_hw*15+210,GREEN,
+       hi.a->freq_thermal_limit-hi.a->freq_hw,
+       hi.a->freq_bist_limit-hi.a->freq_hw, 
        (vm.hammer[hi.addr].working_engines!=0x7FFF)?GREEN_BOLD:GREEN, vm.hammer[hi.addr].working_engines,
         vm.hammer[hi.addr].solved_jobs);
   }

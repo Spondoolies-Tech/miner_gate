@@ -131,7 +131,7 @@ int read_work_mode(int input_voltage) {
   assert(vm.voltage_max   >= vm.voltage_start);
   assert(vm.max_ac2dc_power   >= 1000);
   assert(vm.max_ac2dc_power   <= AC2DC_POWER_LIMIT);
-  if ((vm.max_dc2dc_current_16s   > 65) || (vm.max_dc2dc_current_16s   < 50)) {
+  if ((vm.max_dc2dc_current_16s   > 70) || (vm.max_dc2dc_current_16s   < 50)) {
     vm.max_dc2dc_current_16s = 61;
   }
   vm.max_dc2dc_current_16s *= 16;
