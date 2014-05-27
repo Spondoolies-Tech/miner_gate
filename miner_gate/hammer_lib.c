@@ -924,7 +924,9 @@ int update_vm_with_currents_and_temperatures_nrt() {
       if (vm.loop[loop].dc2dc.loop_vtrim > VTRIM_MIN) {       
          vm.loop[loop].dc2dc.max_vtrim_currentwise = vm.loop[loop].dc2dc.loop_vtrim-1;
       }
-
+      static char x[200]; 
+      sprintf(x, "Loop %x down", loop);
+      mg_event(x);
       // close all loops accept l and give reset
       unsigned int bypass_loops = (~(1 << loop) & 0xFFFFFF);
       write_spi(ADDR_SQUID_LOOP_BYPASS, bypass_loops);
@@ -958,7 +960,7 @@ int update_vm_with_currents_and_temperatures_nrt() {
       for (int h = 0; h < HAMMERS_PER_LOOP; h++) {
                int addr = loop * HAMMERS_PER_LOOP + h;
                enable_engines_asic(addr, vm.hammer[h].working_engines);
-               vm.hammer[h].freq_hw = vm.hammer[h].freq_wanted - 1;
+               vm.hammer[h].freq_hw = (ASIC_FREQ)(vm.hammer[h].freq_wanted - 1);
       }
       //enable_reg_debug = 0;
       
@@ -967,7 +969,7 @@ int update_vm_with_currents_and_temperatures_nrt() {
       for (int h = 0; h < HAMMERS_PER_LOOP; h++) {
          int addr = loop * HAMMERS_PER_LOOP + h;
          enable_engines_asic(addr, vm.hammer[h].working_engines);
-         vm.hammer[h].freq_hw = vm.hammer[h].freq_wanted - 1;
+         vm.hammer[h].freq_hw = (ASIC_FREQ)(vm.hammer[h].freq_wanted - 1);
       }
       write_reg_broadcast(ADDR_WIN_LEADING_0, vm.cur_leading_zeroes);
       write_spi(ADDR_SQUID_LOOP_BYPASS, (~(vm.good_loops))&0xFFFFFF);
@@ -1545,6 +1547,7 @@ void *squid_regular_state_machine_rt(void *p) {
   gettimeofday(&last_force_queue, NULL);
   gettimeofday(&tv, NULL);
   int usec;
+  vm.last_bist_state_machine = BIST_SM_DO_BIST_AGAIN;
 
   for (;;) {
     gettimeofday(&tv, NULL);

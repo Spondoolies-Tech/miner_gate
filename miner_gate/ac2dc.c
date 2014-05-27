@@ -57,15 +57,13 @@ static int ac2dc_get_power() {
   //do_stupid_i2c_workaround();
   r = i2c_read_word(mgmt_addr[ac2dc_type], AC2DC_I2C_READ_POUT_WORD, &err);
   if (err) {
-    psyslog("RESET I2C BUS?\n");
-    /*    
+    psyslog("RESET I2C BUS?\n");  
     system("echo 111 > /sys/class/gpio/export");
     system("echo out > /sys/class/gpio/gpio111/direction");
     system("echo 0 > /sys/class/gpio/gpio111/value");
     system("echo 1 > /sys/class/gpio/gpio111/value");
     usleep(1000000);
     system("echo 111 > /sys/class/gpio/unexport");
-    */
     passert(0);
   }
   int power = ac2dc_getint(r); //TODOZ

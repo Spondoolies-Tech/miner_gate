@@ -635,6 +635,7 @@ int main(int argc, char *argv[]) {
           "ERROR: no 0xdeadbeef in squid pong register!\n");
 
 
+  mg_status("Hello");
 
   // Find good loops
   // Update vm.good_loops

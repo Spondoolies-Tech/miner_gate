@@ -74,7 +74,7 @@ void end_stopper(struct timeval *tv, const char *name) {
 }
 
 
-void mg_event(unsigned char *s) {
+void mg_event(const char *s) {
 	FILE *f = fopen("/tmp/mg_event", "w");
     if (!f) {
       psyslog("Failed to create watchdog file\n");
@@ -84,7 +84,7 @@ void mg_event(unsigned char *s) {
     fclose(f);
 }
 
-void mg_status(unsigned char *s) {
+void mg_status(const char *s) {
 	FILE *f = fopen("/tmp/mg_status", "w");
     if (!f) {
       psyslog("Failed to create watchdog file\n");

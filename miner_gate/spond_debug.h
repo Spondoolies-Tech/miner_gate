@@ -78,7 +78,7 @@ void print_stack();
 
 void start_stopper(struct timeval *tv);
 void end_stopper(struct timeval *tv, const char *name);
-void mg_event(unsigned char *c);
-void mg_status(unsigned char *c);
+void mg_event(const char *c);
+void mg_status(const char *c);
 
 #endif
