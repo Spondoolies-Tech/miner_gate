@@ -102,6 +102,7 @@ void exit_nicely(int seconds_sleep_before_exit) {
   for (int l = 0 ; l < LOOP_COUNT ; l++) {
     dc2dc_disable_dc2dc(l, &err); 
   }
+  mg_status("OFF");
   set_fan_level(0);
   save_rate_temp(0,0,0);
   psyslog("Here comes unexpected death!\n");
