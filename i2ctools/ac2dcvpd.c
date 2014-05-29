@@ -128,7 +128,7 @@ int main(int argc, char *argv[])
   if (0 == rc)
   {
     if (print_all)
-      printf("%s%s%s%s\n",quiet?"":h_all,vpd.pnr,vpd.model,vpd.serial);
+      printf("%s%s %s %s%s\n",quiet?"":h_all,vpd.pnr,vpd.revision,vpd.model,vpd.serial);
     if (print_pnr)
       printf("%s%s\n",quiet?"":h_pnr,vpd.pnr);
     if (print_mod)

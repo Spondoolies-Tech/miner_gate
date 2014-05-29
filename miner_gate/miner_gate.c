@@ -635,7 +635,13 @@ int main(int argc, char *argv[]) {
           "ERROR: no 0xdeadbeef in squid pong register!\n");
 
 
-  mg_status("Hello");
+// add DCR (coils/inductors/sllilim) to status
+  int top_iductor = vm.loop[0].dc2dc.inductor_type;
+  int bottom_iductor = vm.loop[12].dc2dc.inductor_type;
+  static char stat[64];
+  sprintf(stat, "DCRTOP %d DCRBOT %d", top_iductor , bottom_iductor);
+
+  mg_status(stat);
 
   // Find good loops
   // Update vm.good_loops
