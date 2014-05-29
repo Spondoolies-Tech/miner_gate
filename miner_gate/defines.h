@@ -15,7 +15,10 @@
 // compilation flags
 #define TEST_BOARD 0
 #define ECONOMY 0
-//#define NO_PEAKS 
+//#define NO_PEAKS_START 
+//#define NO_PEAKS_STOP
+
+#define FIX_OC_ERRORS
 
 // System parameters
 // Above this not allowed
@@ -102,6 +105,6 @@
 
 #define NO_AC2DC_I2C
 #define IDLE_TIME_TO_PAUSE_ENGINES 30
-#define FIXED_VOLTAGE
+//#define FIXED_VOLTAGE
 
 #endif

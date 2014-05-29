@@ -107,7 +107,6 @@ void discover_good_loops() {
   write_spi(ADDR_SQUID_COMMAND, 0x0);
   write_spi(ADDR_SQUID_LOOP_BYPASS, 0);
   write_spi(ADDR_SQUID_LOOP_RESET, 0xffffff);
-
  
   for (i = 0; i < LOOP_COUNT; i++) {
     vm.loop[i].id = i;

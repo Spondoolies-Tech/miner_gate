@@ -99,7 +99,7 @@ void loop_up(int l) {
           // if its termal, dont change it.
           if (vm.hammer[h].freq_bist_limit == vm.hammer[h].freq_thermal_limit) {
             vm.hammer[h].freq_thermal_limit = vm.hammer[h].freq_bist_limit = 
-              (vm.hammer[h].freq_bist_limit < MAX_ASIC_FREQ-2)?((ASIC_FREQ)(vm.hammer[h].freq_bist_limit+2)):(MAX_ASIC_FREQ-1); 
+              (vm.hammer[h].freq_bist_limit < MAX_ASIC_FREQ-2)?((ASIC_FREQ)(vm.hammer[h].freq_bist_limit+2)):(ASIC_FREQ)(MAX_ASIC_FREQ-1); 
           }
           //vm.hammer[h].agressivly_scale_up = true;
         } 
@@ -169,7 +169,7 @@ int asic_frequency_update_nrt_fast() {
       int passed = h->passed_last_bist_engines;        
       if ((passed == ALL_ENGINES_BITMASK)) {
           //PASSED BIST
-          printf("P:%d[%d] ", h->address, h->freq_wanted*15+210);
+          //printf("P:%d[%d] ", h->address, h->freq_wanted*15+210);
           one_ok = 1;
           h->freq_wanted = (ASIC_FREQ)(h->freq_wanted+1);
           /*
@@ -184,7 +184,7 @@ int asic_frequency_update_nrt_fast() {
           set_pll(h->address, h->freq_wanted);
       } else if (h->freq_wanted == ASIC_FREQ_225) {
           // FAILED BIST at FREQ 225
-          printf("X:%d[%d] (%x)", h->address, h->freq_wanted*15+210, passed);
+          //printf("X:%d[%d] (%x)", h->address, h->freq_wanted*15+210, passed);
           h->working_engines = h->working_engines&passed;
           one_ok = 1;
           h->freq_wanted = (ASIC_FREQ)(h->freq_wanted+1);
@@ -193,7 +193,7 @@ int asic_frequency_update_nrt_fast() {
           set_pll(h->address, h->freq_wanted);
       } else {
           // take one before last BIST.
-          printf("F:%d[%d] (%x)", h->address, h->freq_wanted*15+210, passed);
+          //printf("F:%d[%d] (%x)", h->address, h->freq_wanted*15+210, passed);
           // Keep it one above :)
           h->freq_wanted = (ASIC_FREQ)(h->freq_wanted-1);
           h->freq_thermal_limit = h->freq_wanted;
@@ -226,9 +226,9 @@ void set_working_voltage_discover_top_speeds() {
   // All remember BIST they failed!
   for (int h =0; h < HAMMERS_COUNT ; h++) {
     if (vm.hammer[h].asic_present) {
-       vm.hammer[h].freq_wanted = (ASIC_FREQ)(vm.hammer[h].freq_wanted + 1);
-       vm.hammer[h].freq_bist_limit = (ASIC_FREQ)(vm.hammer[h].freq_bist_limit + 1);    
-       vm.hammer[h].freq_thermal_limit = (ASIC_FREQ)(vm.hammer[h].freq_thermal_limit + 1);
+       //vm.hammer[h].freq_wanted = (ASIC_FREQ)(vm.hammer[h].freq_wanted + 1);
+       //vm.hammer[h].freq_bist_limit = (ASIC_FREQ)(vm.hammer[h].freq_bist_limit + 1);    
+       //vm.hammer[h].freq_thermal_limit = (ASIC_FREQ)(vm.hammer[h].freq_thermal_limit + 1);
        vm.hammer[h].passed_last_bist_engines = ALL_ENGINES_BITMASK;
     }
   }
