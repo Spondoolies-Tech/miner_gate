@@ -47,7 +47,8 @@
 
 #define MAX_BOTTOM_TEMP 90
 #define MAX_TOP_TEMP 90
-#define MAX_MGMT_TEMP 50
+#define MAX_MGMT_TEMP_FANS 50
+#define MAX_MGMT_TEMP 60
 
 
 #define AC2DC_TEMP_GREEN_LINE 110
@@ -105,6 +106,8 @@
 
 #define NO_AC2DC_I2C
 #define IDLE_TIME_TO_PAUSE_ENGINES 30
-//#define FIXED_VOLTAGE
+//#define THERMAL_TESTING 
+//#define ALL_TEMP_MONITOR
+
 
 #endif

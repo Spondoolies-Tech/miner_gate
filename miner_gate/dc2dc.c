@@ -88,11 +88,11 @@ void dc2dc_init_loop(int loop) {
     }
 
     if (vm.loop[loop].dc2dc.inductor_type == INDUCTOR_TYPE_WURTH_DEV) {
-      i2c_write_word(I2C_DC2DC, 0x4a, 0xf850); 	// OC warn
+      i2c_write_word(I2C_DC2DC, 0x4a, 0xf857); 	// OC warn
       i2c_write_word(I2C_DC2DC, 0x46, 0xf864); 	// OC Faultsss
     } else {
-      i2c_write_word(I2C_DC2DC, 0x4a, 0xf856); 	// OC warn
-      i2c_write_word(I2C_DC2DC, 0x46, 0xf860); 	// OC Faultsss
+      i2c_write_word(I2C_DC2DC, 0x4a, 0xf857); 	// OC warn
+      i2c_write_word(I2C_DC2DC, 0x46, 0xf864); 	// OC Faultsss
     }
 
 #else
