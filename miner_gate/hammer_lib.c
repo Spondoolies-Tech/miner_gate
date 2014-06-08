@@ -784,9 +784,19 @@ void print_adapter();
 int has_work_req();
 
 void one_minute_tasks() {
+  static int cnt = 0;
+  cnt++;
   // Give them chance to raise over 3 hours if system got colder
   psyslog("Last minute rate: %d (m:%d, nm:%d)\n", (vm.solved_difficulty_total*4/60), vm.mining_time, vm.not_mining_time)
   vm.solved_difficulty_total = 0;
+  if (cnt%(60*24) == 0) {
+    // Lets forget all scaling once every day!
+    for (int i = 0 ; i < LOOP_COUNT; i++) {
+      if (vm.loop[i].enabled_loop) {
+        vm.loop[i].dc2dc.max_vtrim_currentwise = vm.vtrim_max;
+      }
+    }
+  }
 }
 
 
