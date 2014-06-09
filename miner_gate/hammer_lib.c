@@ -408,8 +408,8 @@ int allocate_addresses_to_devices_on_loop(int l, int override_vm) {
              vm.loop[l].asic_count--;
              vm.hammer[addr].working_engines = ALL_ENGINES_BITMASK;  
              vm.hammer[addr].passed_last_bist_engines = ALL_ENGINES_BITMASK;
-             vm.hammer[addr].freq_thermal_limit = MAX_ASIC_FREQ;
-             vm.hammer[addr].freq_bist_limit = MAX_ASIC_FREQ;
+             vm.hammer[addr].freq_thermal_limit = MAX_ASIC_FREQ - 1;
+             vm.hammer[addr].freq_bist_limit = MAX_ASIC_FREQ - 1;
              vm.hammer[addr].freq_wanted = MINIMAL_ASIC_FREQ;
            }
          } else {
@@ -559,6 +559,9 @@ int get_print_win(int winner_device) {
     vm.concecutive_bad_wins++;
     if (vm.concecutive_bad_wins > 300) {
       // Hammers out of sync.
+      static char x[200]; 
+      sprintf(x, "concecutive_bad_wins");
+      mg_event(x);
       exit_nicely();
     }
   }
@@ -781,9 +784,19 @@ void print_adapter();
 int has_work_req();
 
 void one_minute_tasks() {
+  static int cnt = 0;
+  cnt++;
   // Give them chance to raise over 3 hours if system got colder
   psyslog("Last minute rate: %d (m:%d, nm:%d)\n", (vm.solved_difficulty_total*4/60), vm.mining_time, vm.not_mining_time)
   vm.solved_difficulty_total = 0;
+  if (cnt%(60*6) == 0) {
+    // Lets forget all scaling once every day!
+    for (int i = 0 ; i < LOOP_COUNT; i++) {
+      if (vm.loop[i].enabled_loop) {
+        vm.loop[i].dc2dc.max_vtrim_currentwise = vm.vtrim_max;
+      }
+    }
+  }
 }
 
 
@@ -1005,7 +1018,7 @@ int update_vm_with_currents_and_temperatures_nrt() {
 
 
 
-
+#ifndef ALL_TEMP_MONITOR
 void set_temp_reading_rt(int measure_temp_addr, uint32_t* intr) {
     //flush_spi_write();
     write_reg_device(measure_temp_addr, ADDR_COMMAND, BIT_CMD_TS_RESET_1 | BIT_CMD_TS_RESET_0);
@@ -1027,9 +1040,43 @@ void proccess_temp_reading_rt(HAMMER *a, int intr) {
           a->asic_temp = (ASIC_TEMP)(vm.max_asic_temp-1);          
           a->too_hot_temp_counter=0;
      }
-
+}
+#else
+int current_reading = ASIC_TEMP_125;
+void set_temp_reading_rt(int measure_temp_addr, uint32_t* intr) {
+    //flush_spi_write();
+    if (measure_temp_addr == 0) {
+      current_reading = current_reading + 2;
+      if (current_reading >= ASIC_TEMP_COUNT) {
+         current_reading = ASIC_TEMP_89;
+      }
+    }
+    write_reg_device(measure_temp_addr, ADDR_COMMAND, BIT_CMD_TS_RESET_1 | BIT_CMD_TS_RESET_0);
+    write_reg_broadcast(ADDR_TS_SET_0, (current_reading-2));
+    // Set to vm.max_asic_temp
+    write_reg_broadcast(ADDR_TS_SET_1, (current_reading-1));
+    write_reg_device(measure_temp_addr, ADDR_COMMAND, BIT_CMD_TS_RESET_1 | BIT_CMD_TS_RESET_0);
+    push_hammer_read(measure_temp_addr, ADDR_INTR_RAW, intr);
 }
 
+void proccess_temp_reading_rt(HAMMER *a, int intr) {
+     if (!(intr & BIT_INTR_0_OVER)) {
+       if (a->asic_temp > (current_reading-2)) {
+           a->asic_temp = (ASIC_TEMP)(current_reading-2);
+           //a->too_hot_temp_counter=0;
+       }
+     } else if ((intr & BIT_INTR_1_OVER)) { 
+        if ((a->asic_temp < current_reading)) {
+          a->asic_temp = (ASIC_TEMP)(current_reading);
+          //a->too_hot_temp_counter++;
+        }
+     } else {
+          a->asic_temp = (ASIC_TEMP)(current_reading-1);          
+          //a->too_hot_temp_counter=0;
+     }
+}
+
+#endif
 // 30 times a second - poll win and 1 temperature 
 // and set 1 pll
 #if 0
@@ -1443,11 +1490,26 @@ void *i2c_state_machine_nrt(void *p) {
         printf("MGMT TEMP = %d\n",mgmt_tmp);
         printf("BOTTOM TEMP = %d\n",bottom_tmp);
         printf("TOP TEMP = %d\n",top_tmp);
+
+
+        if ((mgmt_tmp > MAX_MGMT_TEMP_FANS && vm.max_fan_level < 90)) {
+          psyslog("Critical temperature - turn fans on!\n");
+          vm.max_fan_level = 90;
+          set_fan_level(100);
+          static char x[200]; 
+          sprintf(x, "Thermal FAN UP!");
+          mg_event(x);
+        }
+        
+
         
         if ((mgmt_tmp > MAX_MGMT_TEMP) || (bottom_tmp > MAX_BOTTOM_TEMP) || (top_tmp > MAX_TOP_TEMP)) {
           psyslog("Critical temperature - exit!\n");
           set_light(LIGHT_GREEN, LIGHT_MODE_OFF);          
           set_fan_level(100);
+          static char x[200]; 
+          sprintf(x, "Thermal shut down!");
+          mg_event(x);
           exit_nicely(120);
           // Never returns...
         }

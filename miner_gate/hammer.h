@@ -386,6 +386,7 @@ typedef struct {
   uint32_t ac2dc_temp;
   //int work_mode; // 0 = slow, 1 = normal, 2 = turbo
   int max_fan_level;
+  int force_freq;
   int voltage_start;
   int vtrim_start;
   bool vmargin_start;

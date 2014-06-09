@@ -99,7 +99,7 @@ void loop_up(int l) {
           // if its termal, dont change it.
           if (vm.hammer[h].freq_bist_limit == vm.hammer[h].freq_thermal_limit) {
             vm.hammer[h].freq_thermal_limit = vm.hammer[h].freq_bist_limit = 
-              (vm.hammer[h].freq_bist_limit < MAX_ASIC_FREQ-2)?((ASIC_FREQ)(vm.hammer[h].freq_bist_limit+2)):(ASIC_FREQ)(MAX_ASIC_FREQ-1); 
+              (vm.hammer[h].freq_bist_limit < MAX_ASIC_FREQ-3)?((ASIC_FREQ)(vm.hammer[h].freq_bist_limit+2)):(ASIC_FREQ)(MAX_ASIC_FREQ-1); 
           }
           //vm.hammer[h].agressivly_scale_up = true;
         } 
@@ -111,42 +111,6 @@ void loop_up(int l) {
 
 
 #if 0
-
-int asic_frequency_update_nrt_fast() {    
-  pause_asics_if_needed();
-  int one_ok = 0;
-  for (int l = 0 ; l < LOOP_COUNT ; l++) {
-    if (!vm.loop[l].enabled_loop) {
-      continue;
-    }
-    //printf("DOING INIT BIST ON FREQ: %d\n", vm.hammer[l*HAMMERS_PER_LOOP].freq_wanted );
-    for (int a = 0 ; a < HAMMERS_PER_LOOP; a++) {
-      HAMMER *h = &vm.hammer[l*HAMMERS_PER_LOOP+a];
-      if (!h->asic_present) {
-        continue;
-      }
-      int passed = h->passed_last_bist_engines;        
-      if ((passed == ALL_ENGINES_BITMASK)) {
-          one_ok = 1;
-          h->freq_wanted = (ASIC_FREQ)(h->freq_wanted+1);
-          h->freq_thermal_limit = h->freq_wanted;
-          h->freq_bist_limit = h->freq_wanted;    
-          set_pll(h->address, h->freq_wanted);  
-      } else if (h->freq_wanted == ASIC_FREQ_225) {
-          h->working_engines = h->working_engines&passed;
-          h->freq_wanted = (ASIC_FREQ)(h->freq_wanted+1);
-          h->freq_thermal_limit = h->freq_wanted;
-          h->freq_bist_limit = h->freq_wanted;    
-          set_pll(h->address, h->freq_wanted);  
-          h->passed_last_bist_engines = ALL_ENGINES_BITMASK;
-      } else {      
-
-        h->passed_last_bist_engines = ALL_ENGINES_BITMASK;
-      }
-    }
-  }
-  return one_ok; 
-}
 
 
 #else
@@ -172,13 +136,13 @@ int asic_frequency_update_nrt_fast() {
           //printf("P:%d[%d] ", h->address, h->freq_wanted*15+210);
           one_ok = 1;
           h->freq_wanted = (ASIC_FREQ)(h->freq_wanted+1);
-          /*
-          if (h->freq_wanted == MAX_ASIC_FREQ) {
+          
+          if (h->freq_wanted > MAX_ASIC_FREQ-2) {
             psyslog("Disabling too fast runaway asic %d\n", h->address);
             disable_asic_forever_rt(h->address);
             continue;
           }
-          */
+          
           h->freq_thermal_limit = h->freq_wanted;
           h->freq_bist_limit = h->freq_wanted;
           set_pll(h->address, h->freq_wanted);
@@ -220,7 +184,7 @@ void set_working_voltage_discover_top_speeds() {
     //usleep(10000);    
     do_bist_ok_rt(0);
     one_ok = asic_frequency_update_nrt_fast();
- } while (one_ok && (!kill_app) && (current_freq++)<=MAX_ASIC_FREQ);
+ } while (one_ok && (!kill_app) && (current_freq++)<MAX_ASIC_FREQ);
 
 
   // All remember BIST they failed!
@@ -260,7 +224,7 @@ void ac2dc_scaling_loop(int l) {
      // has unused freq - scale down.
      if (vm.loop[l].overheating_asics >= 4) {
         if (loop_can_down(l)) {
-          psyslog( "LOOP DOWN:%d\n" , l);            
+          psyslog( "LOOP DOWN overheating_asics:%d\n" , l);            
           changed = 1;
           loop_down(l);  
           vm.ac2dc_power -= 2;

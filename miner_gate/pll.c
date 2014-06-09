@@ -79,12 +79,25 @@ void enable_engines_asic(int addr, int engines_mask) {
 
 
 void set_pll(int addr, ASIC_FREQ freq) {
+  if (freq >= MAX_ASIC_FREQ-2) {
+    // Runaway
+    disable_asic_forever_rt(addr);
+    return;
+  }
+  
+  if (vm.force_freq) {
+    freq = 
+    vm.hammer[addr].freq_hw = 
+    vm.hammer[addr].freq_thermal_limit = 
+    vm.hammer[addr].freq_wanted = vm.force_freq;
+  }
   //passert(vm.engines_disabled == 1);
   write_reg_device(addr, ADDR_DLL_OFFSET_CFG_LOW, 0xC3C1C200);
   write_reg_device(addr, ADDR_DLL_OFFSET_CFG_HIGH, 0x0082C381);
   if(freq >= ASIC_FREQ_MAX_POSSIBLE_HW || freq < ASIC_FREQ_225) {
     psyslog("ERROR: freq=%d\n",freq*15+210);
-    passert(0);
+    //passert(0);
+    return;
   }
   pll_frequency_settings *ppfs;
   ppfs = &pfs[freq];

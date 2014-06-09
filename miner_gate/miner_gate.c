@@ -114,7 +114,18 @@ void exit_nicely(int seconds_sleep_before_exit) {
 
 
 
-
+//#ifdef THERMAL_TESTING
+int read_force_freq() {
+  FILE* file = fopen ("/etc/mg_freq", "r");
+  if (file > 0) {
+    fscanf (file, "%d", &vm.force_freq);
+    if (vm.force_freq > MAX_ASIC_FREQ || vm.force_freq < 0) {
+      vm.force_freq = 0;
+    }
+    fclose (file);
+  }
+}
+//#endif
 
 int read_work_mode(int input_voltage) {
 	FILE* file = fopen ("/etc/mg_custom_mode", "r");
@@ -607,6 +618,8 @@ int main(int argc, char *argv[]) {
   }
   printf("Voltage: %d\n", input_voltage);  
   read_work_mode(input_voltage);
+  read_force_freq();
+
   // Must be done after "read_work_mode"
   psyslog("Read  NVM\n");
   load_nvm_ok();
