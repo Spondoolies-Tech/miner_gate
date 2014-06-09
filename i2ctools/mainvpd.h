@@ -40,10 +40,11 @@
 
 typedef struct {
 	//unsigned char vpdrev[MAIN_BOARD_VPD_VPDREV_ADDR_LENGTH + 1]; // 1+1
-	unsigned char serial[ MAIN_BOARD_VPD_SERIAL_ADDR_LENGTH + 1]; // WW[2]+SER[4]+REV[2]+PLANT[2]
-	unsigned char pnr[MAIN_BOARD_VPD_PNR_ADDR_LENGTH + 1];
-	unsigned char revision[MAIN_BOARD_VPD_PNRREV_ADDR_LENGTH + 1];
+	char serial[ MAIN_BOARD_VPD_SERIAL_ADDR_LENGTH + 1]; // WW[2]+SER[4]+REV[2]+PLANT[2]
+	char pnr[MAIN_BOARD_VPD_PNR_ADDR_LENGTH + 1];
+	char revision[MAIN_BOARD_VPD_PNRREV_ADDR_LENGTH + 1];
 } mainboard_vpd_info_t;
+
 
 
 #endif

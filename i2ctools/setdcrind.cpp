@@ -29,6 +29,8 @@ int LASTLOOP = BOTTOM_LAST_LOOP;
 int LOOPSBITMASK = TOP_BITMASK; // default - top
 int dcr_set_value = -1;
 
+bool bRaw = false;
+
 int usage(char * app ,int exCode ,const char * errMsg = NULL)
 {
     if (NULL != errMsg )
@@ -44,6 +46,8 @@ int usage(char * app ,int exCode ,const char * errMsg = NULL)
     printf ("       -l (hex)   : specify what loops to set (zero based, e.g. bottom board is 0x00FFF000 )\n");
     printf ("       -r 		   : read the value in reg 0xD0 of specified DC2DC\n");
     printf ("       -v (dec)   : value to set into reg 0xD0 of DC2DC\n");
+    printf ("       -R         : RAW - uses entire 0xD0 Register (not only bits 0-3)\n");
+
 
 
     if (0 == exCode) // exCode ==0 means - just print usage and get back to app for business. other value - exit with it.
@@ -103,7 +107,6 @@ int main(int argc, char *argv[])
 		  }
 		}
 		else if ( 0 == strcmp(argv[i],"-r")){
-
 			if (ReadOrWrite == -1 || ReadOrWrite == 0) //read, or not set yet
 			{
 				ReadOrWrite = 0;
@@ -112,6 +115,9 @@ int main(int argc, char *argv[])
 				// both read and write ??
 				badParm = true;
 			}
+		}
+		else if ( 0 == strcmp(argv[i],"-R")){
+			bRaw = true;
 		}
 		else if ( 0 == strcmp(argv[i],"-v")){
 
@@ -189,8 +195,7 @@ int main(int argc, char *argv[])
 		if (thisLoop){
 
 			if (ReadOrWrite == 1) {//
-
-				if (dc2dc_set_dcr_inductor_cat(i , dcr_set_value) != 0){
+				if (dc2dc_set_dcr_inductor_cat(i , dcr_set_value , bRaw) != 0){
 					fprintf(stderr,"Failed to set group %d DC2DC DCR inductor flag %d\n",(i+1),dcr_set_value);
 					rc = rc | (1 << i) | 1; // the 1 will ensure failures.
 					//break;
@@ -198,7 +203,7 @@ int main(int argc, char *argv[])
 			}
 			else
 			{
-				fprintf (stdout , "DC2DC DCR inductor flag loop %d (0xD0) = %d\n",i, dc2dc_get_dcr_inductor_cat (i));
+				fprintf (stdout , "DC2DC DCR inductor flag loop %d (0xD0) = %d\n",i, dc2dc_get_dcr_inductor_cat (i, bRaw));
 			}
 		}
 	}

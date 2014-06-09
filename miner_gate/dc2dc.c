@@ -207,7 +207,9 @@ static void dc2dc_select_i2c_ex(int top,          // 1 or 0
     i2c_write(I2C_DC2DC_SWITCH_GROUP0, 0);                 // TOP   
   }
 }
-int dc2dc_get_dcr_inductor_cat(int loop){
+int dc2dc_get_dcr_inductor_cat(int loop , bool raw){
+
+//	fprintf(stderr, "---> Entered dc2dc_get_dcr_inductor_cat %d (R)%d\n", loop , raw);
 	int rc = 0;
 	int err = 0;
 	//fprintf(stderr, "---> Entered dc2dc_set_dcr_inductor_cat %d %d\n", loop , value);
@@ -220,24 +222,24 @@ int dc2dc_get_dcr_inductor_cat(int loop){
 	//fprintf(stderr, "writing %d to LOOP %2d \n", (uint16_t)(0xFFFF & value),loop );
 	usleep(1000);
 
-	rc = (0x000F & i2c_read_word(I2C_DC2DC , 0xD0  , &err));
+	rc = i2c_read_word(I2C_DC2DC , 0xD0  , &err);
 
 	if (0 != err) {
 		return -2;
 	}
 
+	if (! raw){
+		rc &= 0x000F;
+	}
+
 	return rc;
 }
 
-int dc2dc_set_dcr_inductor_cat(int loop,int value){
+int dc2dc_set_dcr_inductor_cat(int loop,int value,bool raw){
 	int rc = 0;
 	int err = 0;
-	//fprintf(stderr, "---> Entered dc2dc_set_dcr_inductor_cat %d %d\n", loop , value);
-
-	if (value < 0 || value	> 15){
-		fprintf(stderr, "DCR Value of %4d is Invalid. Only 0-15 are supported\n", value);
-		return 4;
-	}
+	int set_value;
+	//fprintf(stderr, "---> Entered dc2dc_set_dcr_inductor_cat %d %d (R)%d\n", loop , value,raw);
 
 	dc2dc_select_i2c(loop , &err);
 	if (0 != err) {
@@ -245,24 +247,37 @@ int dc2dc_set_dcr_inductor_cat(int loop,int value){
 		return 1;
 	}
 
-	int current_value = i2c_read_word(I2C_DC2DC , 0xD0  , &err);
-	int current_dcr = current_value & 0x000F;
-
-	if (0 != err) {
-		//fprintf(stderr, "LOOP %2d GET DCR INDUCTOR to %d FAILED\n", loop , value);
-		return 3;
-	}
-
-	if (current_dcr == value)
+	if(! raw)
 	{
-		// nothing to do. value already set correctly.
-		return 0;
+		if (value < 0 || value	> 15){
+			fprintf(stderr, "DCR Value of %4d is Invalid. Only 0-15 are supported\n", value);
+			return 4;
+		}
+
+
+		int current_value = i2c_read_word(I2C_DC2DC , 0xD0  , &err);
+		int current_dcr = current_value & 0x000F;
+
+		if (0 != err) {
+			//fprintf(stderr, "LOOP %2d GET DCR INDUCTOR to %d FAILED\n", loop , value);
+			return 3;
+		}
+
+		if (current_dcr == value)
+		{
+			// nothing to do. value already set correctly.
+			return 0;
+		}
+
+		set_value = (current_value & 0xFFFFFFF0) | value;
+		fprintf(stderr, "writing %d to LOOP %2d (%2d)\n", (uint16_t)(0xFFFF & set_value),value,loop );
+
 	}
-
-	int set_value = (current_value & 0xFFFFFFF0) | value;
-
-	fprintf(stderr, "writing %d to LOOP %2d (%2d)\n", (uint16_t)(0xFFFF & set_value),value,loop );
+	else{
+		set_value = value;
+	}
 	usleep(1000);
+	//fprintf(stderr, "LOOP %2d Setting value(real) %d(%d)\n", loop , value , set_value);
 	i2c_write_word(I2C_DC2DC, 0xD0, (uint16_t)(0xFFFF & set_value), &err);
 	if (0 != err) {
 		//fprintf(stderr, "LOOP %2d SET DCR INDUCTOR to %d FAILED\n", loop , value);
