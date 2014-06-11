@@ -17,9 +17,18 @@
 #include "dc2dc.h"
 #include "mainvpd.h"
 
+
 using namespace std;
 extern pthread_mutex_t i2c_mutex;
 
+inline int fix_max_cap(int val, int max){
+	if (val < 0)
+		return 0;
+	else if (val > max)
+		return max;
+	else
+		return val;
+}
 int usage(char * app ,int exCode ,const char * errMsg = NULL)
 {
     if (NULL != errMsg )
@@ -48,18 +57,83 @@ int usage(char * app ,int exCode ,const char * errMsg = NULL)
     }
 }
 
-int mainboard_set_vpd( mainboard_vpd_info_t *pVpd ,const char * vpd,int d00 , int d01 , int d02 , int d03) {
+int writeD0ofL02L3(int topbot , int l0 , int l1 , int l2 , int l3)
+{
+	int boardOffset = 12 * topbot;
+
+	dc2dc_set_dcr_inductor_cat((boardOffset + 0),l0 , true);
+	dc2dc_set_dcr_inductor_cat((boardOffset + 1),l1 , true);
+	dc2dc_set_dcr_inductor_cat((boardOffset + 2),l2 , true);
+	dc2dc_set_dcr_inductor_cat((boardOffset + 3),l3 , true);
+
+	return 0;
+}
+
+
+int mainboard_set_vpd( mainboard_vpd_info_t *pVpd , int topOrBottom, const char * vpd,int d00 , int d01 , int d02 , int d03) {
 	int rc = 0;
 	int err = 0;
-	//01234567890123456789012
-	//FL1420003205ELA-0005A02
-	//pVpd->pnr , pVpd->revision , pVpd->serial
-	//
+
 	strncpy(pVpd->serial ,vpd,12);
 	strncpy(pVpd->pnr ,vpd+12,8);
 	strncpy(pVpd->revision,vpd+20,3);
 
-	return rc;
+	char CMs[3];
+	strncpy(CMs ,vpd,2);
+	int CMi;
+	if (strncmp(CMs, "FL" , 2) == 0 ){
+		CMi = 0;
+	}else
+	{
+		CMi = 3;
+	}
+
+	char YYs[3];
+	strncpy(YYs ,vpd+2,2);
+	int YYi = 0;
+	sscanf(YYs , "%d" , &YYi);
+	YYi -= 14;
+	YYi = fix_max_cap(YYi,3);
+
+
+	char WWs[3];
+	strncpy(WWs ,vpd+4,2);
+	int WWi;
+	sscanf(WWs , "%d" , &WWi);
+
+	char SNs[7];
+	strncpy(SNs ,vpd+6,6);
+	int SNi = 0;
+	sscanf(SNs , "%d" , &SNi);
+	SNi = fix_max_cap(SNi,999999);
+
+	char PNRs[9];
+	strncpy(PNRs ,vpd+12,8);
+	int PNRi = 0;
+	sscanf(PNRs+4 , "%d" , &PNRi);
+	PNRi=fix_max_cap(PNRi,7);
+
+	char REVCs[2];
+	strncpy(REVCs,vpd+20,1);
+	int REVCi = REVCs[0] - 65;
+	REVCi = fix_max_cap(REVCi,7);
+
+	char REVNs[3];
+	strncpy(REVNs,vpd+22,1);
+	int REVNi = 0;
+	sscanf(REVNs , "%d" , &REVNi);
+	REVNi=fix_max_cap(REVNi,15);
+
+	d00 = 0xFFFF & ((d00 & 0x400F)| ( (1<<15) | (CMi << 12)| (YYi << 10 )| (WWi<<4) ));
+	d01 = 0xFFFF & ((d01 & 0x400F)| ( (1<<15) | (SNi & 0x3FF)<<4 ));
+	d02 = 0xFFFF & ((d02 & 0x400F)| ( (1<<15) | (SNi & 0xFFC00)>>6 ));
+	d03 = 0xFFFF & ((d03 & 0x400F)| ( (1<<15) | PNRi<<11 | REVCi<<8 | REVNi<<4 ));
+
+//	printf("CP %d\n",++CP);
+//	printf("About to set L%d - %d ; L%d %d ; L%d %d ; L%d %d\n",
+//			topOrBottom*12+0,d00 , topOrBottom*2+1,d01,topOrBottom*12+2,d02 , topOrBottom*2+3,d03);
+
+	return writeD0ofL02L3(topOrBottom , d00 , d01 , d02,d03);
 }
 int mainboard_get_vpd( mainboard_vpd_info_t *pVpd , int d00 , int d01 , int d02 , int d03) {
 	int rc = 0;
@@ -91,7 +165,7 @@ int mainboard_get_vpd( mainboard_vpd_info_t *pVpd , int d00 , int d01 , int d02 
 
 	char WWs[3];
 	int WWi = (d00 >>4) & 63;
-	sprintf(WWs,"%d",WWi);
+	sprintf(WWs,"%2.2d",WWi);
 
 	char SNs[7];
 	int SNi = (d01>>4 & (0x3FF)) | ( (d02>>4 & (0x3FF)) << 10);
@@ -158,6 +232,7 @@ int readD0ofL02L3(int topbot , int * l0 , int * l1 , int * l2 , int * l3)
 	}
 	return 0;
 }
+
 
 int main(int argc, char *argv[])
 {
@@ -265,8 +340,8 @@ int main(int argc, char *argv[])
 	 }
 
 	 if (write){
-		 fprintf(stderr , RED "vpd to set: %s\n" RESET , vpd_str);
-		 rc  = mainboard_set_vpd(&vpd , vpd_str , L0D0 , L1D0 , L2D0 , L3D0);
+		 //fprintf(stderr , RED "vpd to set:%s %s\n" RESET , topOrBottom==0?"TOP":"BOTTOM",vpd_str);
+		 rc  = mainboard_set_vpd(&vpd ,topOrBottom, vpd_str , L0D0 , L1D0 , L2D0 , L3D0);
 
 		 if (0 == rc)
 		 {
