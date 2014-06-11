@@ -131,7 +131,7 @@ int read_work_mode(int input_voltage) {
 	FILE* file = fopen ("/etc/mg_custom_mode", "r");
   vm.max_ac2dc_power = AC2DC_POWER_LIMIT;
 	int i = 0;
-  passert(file > 0);
+  passert(file != NULL);
   vm.vmargin_start = true;	
 	fscanf (file, "%d %d %d %d %d", &vm.max_fan_level, &vm.voltage_start, &vm.voltage_max, &vm.max_ac2dc_power, &vm.max_dc2dc_current_16s);
   assert(vm.max_fan_level <= 100);
@@ -149,18 +149,21 @@ int read_work_mode(int input_voltage) {
   vm.max_dc2dc_current_16s *= 16;
   fclose (file);
 
+  FILE* ignore_fcc_file = fopen ("/etc/mg_ignore_110_fcc", "r");
+  if (ignore_fcc_file != NULL) {
+    // ignore_fcc_file present
+    fclose (file);
+  } else {
+    if (input_voltage < 130) {
+       psyslog("input_voltage < 130, limit power to 1100\n");
+       vm.max_ac2dc_power = 1100;
+       if (vm.voltage_start > 640) {
+          vm.voltage_start = 640;
+       }
+    }
+  } 
   vm.vtrim_start = VOLTAGE_TO_VTRIM_MILLI(vm.voltage_start);
   vm.vtrim_max = VOLTAGE_TO_VTRIM_MILLI(vm.voltage_max);
-
-
-  if (input_voltage < 130) {
-     psyslog("input_voltage < 130, limit power to 1100\n");
-     vm.max_ac2dc_power = 1100;
-     if (vm.voltage_start > 640) {
-        vm.voltage_start = 640;
-     }
-  } 
-
 
   // compute VTRIM
   psyslog(
