@@ -359,12 +359,6 @@ int update_ac2dc_power_measurments() {
   //int power_guessed = (vm.dc2dc_total_power*1000/790)+60;// ac2dc_get_power()/1000; //TODOZ
   //int power = power_guessed;
   if (vm.cosecutive_jobs >= MIN_COSECUTIVE_JOBS_FOR_AC2DC_MEASUREMENT) {
-      vm.ac2dc_power = ac2dc_get_power()/1000;
-      vm.ac2dc_power = ac2dc_get_power()/1000;
-      vm.ac2dc_power = ac2dc_get_power()/1000;
-      vm.ac2dc_power = ac2dc_get_power()/1000;
-      vm.ac2dc_power = ac2dc_get_power()/1000;
-      vm.ac2dc_power = ac2dc_get_power()/1000;
       vm.ac2dc_power = ac2dc_get_power()/1000;      
     } else {
       vm.ac2dc_power = 0;

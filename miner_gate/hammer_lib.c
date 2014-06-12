@@ -698,8 +698,8 @@ int do_bist_ok_rt(int long_bist) {
  
 
    // Give BIST jobc
-   write_reg_broadcast(ADDR_BIST_NONCE_START, bist_tests[bist_id].nonce_winner - 20000); 
-   write_reg_broadcast(ADDR_BIST_NONCE_RANGE, 20500);
+   write_reg_broadcast(ADDR_BIST_NONCE_START, bist_tests[bist_id].nonce_winner - 10000+(rand()%10)); // Randomise test a bit
+   write_reg_broadcast(ADDR_BIST_NONCE_RANGE, 10500);
    write_reg_broadcast(ADDR_BIST_NONCE_EXPECTED, bist_tests[bist_id].nonce_winner); 
    write_reg_broadcast(ADDR_MID_STATE + 0, bist_tests[bist_id].midstate[0]);
    write_reg_broadcast(ADDR_MID_STATE + 1, bist_tests[bist_id].midstate[1]);
@@ -1441,7 +1441,10 @@ void *i2c_state_machine_nrt(void *p) {
            vm.false_positives_total++;
            // down ASICTreat it like failed BIST
            vm.hammer[winner_device].passed_last_bist_engines &= 0x7EFE;
+        } else {
+          psyslog("WIN OK\n");
         }
+          
         vm.last_win.winner_nonce  = 0;
         vm.last_win.winner_device = 0;
       }
