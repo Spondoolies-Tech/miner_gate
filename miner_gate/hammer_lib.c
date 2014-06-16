@@ -1462,7 +1462,16 @@ void *i2c_state_machine_nrt(void *p) {
       maybe_change_freqs_nrt();
 
       if ((counter % (48)*2) ==  0)  {
-        print_scaling();        
+        print_scaling();
+        if (vm.last_second_jobs == 0) {
+          vm.not_really_mining_seconds++;
+          if (vm.not_really_mining_seconds == 60) {
+            exit_nicely(1);
+          }
+        } else {
+          vm.not_really_mining_seconds = 0;
+        }
+        vm.last_second_jobs = 0;
       }
 
 

@@ -276,8 +276,7 @@ void print_scaling() {
 
    fprintf(f, "Pushed %d jobs , in queue %d jobs!\n",
              vm.last_second_jobs, rt_queue_size);
-   vm.last_second_jobs = 0;
-    fprintf(f, "wins:%d[fp:%d], leading-zeroes:%d idle:%d/%d :)\n", vm.solved_jobs_total, vm.false_positives_total,
+   fprintf(f, "wins:%d[fp:%d], leading-zeroes:%d idle:%d/%d :)\n", vm.solved_jobs_total, vm.false_positives_total,
            vm.cur_leading_zeroes, vm.idle_probs, vm.busy_probs);
     print_adapter(f);
   fclose(f);
