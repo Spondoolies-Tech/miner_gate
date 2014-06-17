@@ -1540,9 +1540,7 @@ void *i2c_state_machine_nrt(void *p) {
         
       // Every 11 seconds save "mining" status
       if ((counter % (48*11)) ==  0)  {
-         if (vm.cosecutive_jobs > 0) {
-           save_rate_temp(bottom_tmp, mgmt_tmp,(vm.cosecutive_jobs)?vm.total_mhash:0);
-         }
+        save_rate_temp(bottom_tmp, mgmt_tmp,(vm.cosecutive_jobs)?vm.total_mhash:0);
       }
 
 
