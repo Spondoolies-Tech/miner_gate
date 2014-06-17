@@ -67,7 +67,7 @@
   
 #define psyslog(X...)                                                          \
   {                                                                            \
-    printf("%d: ", time(NULL)%10000);                           \
+    printf("%d: ", time(NULL)%10000);                                          \
     syslog(LOG_WARNING, X);                                                    \
     printf(X);                                                                 \
   }

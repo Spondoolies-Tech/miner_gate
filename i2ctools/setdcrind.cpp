@@ -38,14 +38,15 @@ int usage(char * app ,int exCode ,const char * errMsg = NULL)
         fprintf (stderr,"==================\n%s\n\n==================\n",errMsg);
     }
 
-    printf ("Usage: %s [-top|-bottom|-both|-l loops] [-r | -v value]\n\n" , app);
+    printf ("Usage: %s [-top|-bottom|-both|-l loops] [-r [-q] | -v value] [-R]\n\n" , app);
 
     printf ("       -top       : top main board(default)\n");
     printf ("       -bottom    : bottom main board\n");
     printf ("       -both      : both top & bottom main boards (default)\n");
     printf ("       -l (hex)   : specify what loops to set (zero based, e.g. bottom board is 0x00FFF000 )\n");
     printf ("       -r 		   : read the value in reg 0xD0 of specified DC2DC\n");
-    printf ("       -v (dec)   : value to set into reg 0xD0 of DC2DC\n");
+    printf ("       -q 		   : read the value in reg 0xD0 with reduced output\n");
+    printf ("       -v (hex)   : value to set into reg 0xD0 of DC2DC\n");
     printf ("       -R         : RAW - uses entire 0xD0 Register (not only bits 0-3)\n");
 
 
@@ -69,6 +70,7 @@ int main(int argc, char *argv[])
 
 	bool callUsage = false;
 	bool badParm = false;
+	bool quiet = false;
 	int ReadOrWrite = -1; // not set. read = 0 , write = 1
 
 	int topOrBottom = -1; // default will be TOP, start with -1, to rule out ambiguity.
@@ -119,13 +121,16 @@ int main(int argc, char *argv[])
 		else if ( 0 == strcmp(argv[i],"-R")){
 			bRaw = true;
 		}
+		else if ( 0 == strcmp(argv[i],"-q")){
+			quiet = true;
+		}
 		else if ( 0 == strcmp(argv[i],"-v")){
 
 			if (ReadOrWrite == -1 || ReadOrWrite == 1) //write, or not set yet
 			{
 				ReadOrWrite = 1;
 
-				sscanf(argv[++i],"%d",&dcr_set_value);
+				sscanf(argv[++i],"%x",&dcr_set_value);
 
 				if (0 > dcr_set_value){
 					fprintf(stderr,"CANT PARSE %s (dcr value) into positive integer\n",argv[i]);
@@ -203,7 +208,12 @@ int main(int argc, char *argv[])
 			}
 			else
 			{
-				fprintf (stdout , "DC2DC DCR inductor flag loop %d (0xD0) = %d\n",i, dc2dc_get_dcr_inductor_cat (i, bRaw));
+				int d0 = dc2dc_get_dcr_inductor_cat (i, bRaw);
+				if (quiet){
+					fprintf (stdout , "0x%X\n",d0 );
+				}else{
+					fprintf (stdout , "DC2DC DCR inductor flag loop %d (0xD0) = 0x%X\n",i,d0 );
+				}
 			}
 		}
 	}

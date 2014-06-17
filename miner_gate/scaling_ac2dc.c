@@ -140,6 +140,20 @@ int asic_frequency_update_nrt_fast() {
           if (h->freq_wanted > MAX_ASIC_FREQ-2) {
             psyslog("Disabling too fast runaway asic %d\n", h->address);
             disable_asic_forever_rt(h->address);
+            int all_bad = 1;
+            int loop = h->address / HAMMERS_PER_LOOP;
+            for (int i = loop*HAMMERS_PER_LOOP; i < (loop+1)*HAMMERS_PER_LOOP;i++) {
+              if (vm.hammer[i].asic_present) {
+                all_bad = 0;
+              }
+            }
+            if (all_bad) {
+              psyslog("ERROR: ALL ASICS ON LOOP %d ARE BAD\n", loop);
+              static char x[200]; 
+              sprintf(x, "ALL ASICS ON LOOP %d ARE BAD", loop);
+              mg_event(x);
+              exit_nicely();
+            }
             continue;
           }
           

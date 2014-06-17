@@ -789,7 +789,8 @@ void one_minute_tasks() {
   // Give them chance to raise over 3 hours if system got colder
   psyslog("Last minute rate: %d (m:%d, nm:%d)\n", (vm.solved_difficulty_total*4/60), vm.mining_time, vm.not_mining_time)
   vm.solved_difficulty_total = 0;
-  if (cnt%(60*3) == 0) {
+  //if (cnt%(60*3) == 0) {
+  if (cnt%(30) == 0) {// experiment - half hour
     // Lets forget all scaling once every day!
     psyslog("Forget SCALING!");
     for (int i = 0 ; i < LOOP_COUNT; i++) {
