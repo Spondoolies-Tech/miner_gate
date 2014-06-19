@@ -175,6 +175,17 @@ int asic_frequency_update_nrt_fast() {
           h->freq_wanted = (ASIC_FREQ)(h->freq_wanted+1);
           if (h->freq_wanted == ASIC_FREQ_MAX) {
             disable_asic_forever_rt(h->address);
+            int all_bad = 1;
+            int loop = h->address / HAMMERS_PER_LOOP;
+            for (int i = loop*HAMMERS_PER_LOOP; i < (loop+1)*HAMMERS_PER_LOOP;i++) {
+              if (vm.hammer[i].asic_present) {
+                all_bad = 0;
+              }
+            }
+            if (all_bad) {
+              psyslog("ERROR: ALL ASICS ON LOOP %d ARE BAD\n", loop);
+              
+            }
             continue;
           }
           h->freq_thermal_limit = h->freq_wanted;
