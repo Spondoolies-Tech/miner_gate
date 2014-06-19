@@ -27,7 +27,7 @@ minergate_req_packet *allocate_minergate_packet_req(uint8_t requester_id,
   p->protocol_version = MINERGATE_PROTOCOL_VERSION;
   p->request_id = request_id;
   p->magic = 0xcaf4;
-  p->resrved1 = 0;
+  p->mask = 0;
   return p;
 }
 

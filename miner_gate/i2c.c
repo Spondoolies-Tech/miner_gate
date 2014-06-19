@@ -102,7 +102,7 @@ uint8_t i2c_read_byte(uint8_t addr, uint8_t command, int *pError) {
 
   i2c_set_address(addr, pError);
   if (*pError != 0) {
-    //printf("i2c_read_byte(%d): call to i2c_set_address returned with err %d\n",__LINE__ , *pError);    
+    printf("i2c_read_byte(%d): call to i2c_set_address returned with err %d\n",__LINE__ , *pError);    
     psyslog(RED "i2c read byte 0x%x 0x%x error1\n" RESET, addr, command);
      passert(0);
   //  res = 0xFF;
@@ -137,7 +137,7 @@ uint8_t i2c_waddr_read_byte(uint8_t addr, uint16_t dev_addr, int *pError) {
 
   i2c_set_address(addr, pError);
   if (*pError != 0) {
-    //printf("i2c_read_byte(%d): call to i2c_set_address returned with err %d\n",__LINE__ , *pError);
+    printf("i2c_read_byte(%d): call to i2c_set_address returned with err %d\n",__LINE__ , *pError);
     psyslog(RED "i2c read byte 0x%x 0x%x error1\n" RESET, addr, command);
      passert(0);
   //  res = 0xFF;
@@ -205,12 +205,23 @@ uint16_t i2c_read_word(uint8_t addr, uint8_t command, int *pError) {
   passert(pError);
   i2c_set_address(addr, pError);
   if ( *pError != 0) {
-    psyslog(RED "i2c read word 0x%x 0x%x error7\n" RESET, addr, command);
+
+#ifdef MINERGATE
+	  psyslog(RED "i2c read word 0x%x 0x%x error7\n" RESET, addr, command);
+#else
+    	perror("i2c read word error7\n" );
+#endif
+
     r = 0xFFFF;
   } else {
     r = i2c_smbus_read_word_data(file, command, pError);
     if ( *pError != 0) {
-      psyslog(RED "i2c read word 0x%x 0x%x error8\n" RESET, addr, command, *pError);
+#ifdef MINERGATE
+    	psyslog(RED "i2c read word 0x%x 0x%x error8\n" RESET, addr, command, *pError);
+#else
+    	perror("i2c read word error8\n");
+#endif
+
       r = 0x0;
       pthread_mutex_unlock(&i2cm);
       return r;

@@ -56,10 +56,10 @@ void thermal_init() {
   write_reg_broadcast(ADDR_SHUTDOWN_ACTION, ALL_ENGINES_BITMASK | 0x78);  
   write_reg_broadcast(ADDR_TS_RSTN_0, 0);
   write_reg_broadcast(ADDR_TS_RSTN_1, 0);
-  // Set to MAX_ASIC_TEMPERATURE-1 
-  write_reg_broadcast(ADDR_TS_SET_0, (MAX_ASIC_TEMPERATURE-2));
-  // Set to MAX_ASIC_TEMPERATURE
-  write_reg_broadcast(ADDR_TS_SET_1, (MAX_ASIC_TEMPERATURE-1));
+  // Set to vm.max_asic_temp-1 
+  write_reg_broadcast(ADDR_TS_SET_0, (vm.max_asic_temp-2));
+  // Set to vm.max_asic_temp
+  write_reg_broadcast(ADDR_TS_SET_1, (vm.max_asic_temp-1));
   write_reg_broadcast(ADDR_TS_RSTN_0, 1);
   write_reg_broadcast(ADDR_TS_RSTN_1, 1);
   flush_spi_write();

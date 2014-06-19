@@ -48,8 +48,9 @@ static void dc2dc_set_channel(int channel_mask, int *err);
 
 // not locked
 void dc2dc_init_loop(int loop) {
-  
     int err;
+    assert(loop < LOOP_COUNT);
+    assert(loop >= 0);
     dc2dc_select_i2c(loop, &err);
     if (err) {
       psyslog(RED "FAILED TO INIT DC2DC1 %d\n" RESET, loop);
@@ -63,18 +64,60 @@ void dc2dc_init_loop(int loop) {
       dc2dc_i2c_close();
       return;
     }
+#ifdef MINERGATE
+    vm.loop[loop].dc2dc.inductor_type = (0x000F & i2c_read_word(I2C_DC2DC, 0xD0));
 
     i2c_write_word(I2C_DC2DC, 0x35, 0xf028); 	// VIN ON
     i2c_write_word(I2C_DC2DC, 0x36, 0xf018); 	// VIN OFF(??)
-    i2c_write_word(I2C_DC2DC, 0x38, 0x881f); 	// Inductor DCR
-    i2c_write_word(I2C_DC2DC, 0x46, 0xf84B); 	// OC Fault
-    i2c_write_word(I2C_DC2DC, 0x4a, 0xf848); 	// OC warn
+    vm.loop[loop].enabled_loop = 1;
+    if (vm.loop[loop].dc2dc.inductor_type == INDUCTOR_TYPE_WURTH_REGULAR) { 
+      psyslog("Inductor type loop %d: 0x881f\n",loop);
+      i2c_write_word(I2C_DC2DC, 0x38, 0x881f); 	// Inductor DCR
+    } else if (vm.loop[loop].dc2dc.inductor_type == INDUCTOR_TYPE_WURTH_DEV) {
+      psyslog("Inductor type loop %d: 0x8835\n",loop);
+      i2c_write_word(I2C_DC2DC, 0x38, 0x8835);  // Inductor DCR 8835
+    } else if (vm.loop[loop].dc2dc.inductor_type == INDUCTOR_TYPE_VISHAY) {
+       psyslog("Inductor type loop %d: 0x8830\n",loop);
+       i2c_write_word(I2C_DC2DC, 0x38, 0x8830);  // Inductor DCR
+    } else if (vm.loop[loop].dc2dc.inductor_type == INDUCTOR_TYPE_WURTH_DEV_2) {
+       psyslog("Inductor type loop %d: 0x881a\n",loop);
+       i2c_write_word(I2C_DC2DC, 0x38, 0x881a);  // Inductor DCR
+    }else { 
+      psyslog("Error: Unknown inductor type %d\n", vm.loop[loop].dc2dc.inductor_type);
+      vm.loop[loop].enabled_loop = 0;
+    }
+
+    if (vm.loop[loop].dc2dc.inductor_type == INDUCTOR_TYPE_WURTH_DEV) {
+      i2c_write_word(I2C_DC2DC, 0x4a, 0xf857); 	// OC warn
+      i2c_write_word(I2C_DC2DC, 0x46, 0xf864); 	// OC Faultsss
+    } else {
+      i2c_write_word(I2C_DC2DC, 0x4a, 0xf857); 	// OC warn
+      i2c_write_word(I2C_DC2DC, 0x46, 0xf864); 	// OC Faultsss
+    }
+
+#else
+    // non MINER_GATE - ATE utils etc - with no vm struct dependency
+      int inductor_type = (0x000F & i2c_read_word(I2C_DC2DC, 0xD0));
+      i2c_write_word(I2C_DC2DC, 0x35, 0xf028); 	// VIN ON
+      i2c_write_word(I2C_DC2DC, 0x36, 0xf018); 	// VIN OFF(??)
+
+      if (inductor_type == INDUCTOR_TYPE_WURTH_REGULAR) {
+        i2c_write_word(I2C_DC2DC, 0x38, 0x881f); 	// Inductor DCR
+      } else if (inductor_type == INDUCTOR_TYPE_WURTH_DEV) {
+        i2c_write_word(I2C_DC2DC, 0x38, 0x8835);  // Inductor DCR 8835
+      } else if (inductor_type == INDUCTOR_TYPE_VISHAY) {
+         i2c_write_word(I2C_DC2DC, 0x38, 0x8830);  // Inductor DCR
+      } else if (inductor_type == INDUCTOR_TYPE_WURTH_DEV_2) {
+         i2c_write_word(I2C_DC2DC, 0x38, 0x881a);  // Inductor DCR
+      }else {
+        psyslog("Error: Unknown inductor type %d\n", inductor_type);
+      }
+#endif
     i2c_write_byte(I2C_DC2DC, 0x47, 0x3C);		// OC fault response
     i2c_write_byte(I2C_DC2DC, 0xd7, 0x03);		// PG limits
     i2c_write_byte(I2C_DC2DC, 0x02, 0x02);		// ON/OFF conditions
-
     //i2c_write(I2C_DC2DC, 0x15);
-    //usleep(1000);
+    //usleep(50000);
     i2c_write(I2C_DC2DC, 0x03);
     dc2dc_i2c_close();
 }
@@ -164,6 +207,93 @@ static void dc2dc_select_i2c_ex(int top,          // 1 or 0
     i2c_write(I2C_DC2DC_SWITCH_GROUP0, 0);                 // TOP   
   }
 }
+int dc2dc_get_dcr_inductor_cat(int loop , bool raw){
+
+//	fprintf(stderr, "---> Entered dc2dc_get_dcr_inductor_cat %d (R)%d\n", loop , raw);
+	int rc = 0;
+	int err = 0;
+	//fprintf(stderr, "---> Entered dc2dc_set_dcr_inductor_cat %d %d\n", loop , value);
+	dc2dc_select_i2c(loop , &err);
+	if (0 != err) {
+		//fprintf(stderr, "LOOP %2d SELECT FAILED\n", loop);
+		return -1;
+	}
+
+	//fprintf(stderr, "writing %d to LOOP %2d \n", (uint16_t)(0xFFFF & value),loop );
+	usleep(1000);
+
+	rc = i2c_read_word(I2C_DC2DC , 0xD0  , &err);
+
+	if (0 != err) {
+		return -2;
+	}
+
+	if (! raw){
+		rc &= 0x000F;
+	}
+
+	return rc;
+}
+
+int dc2dc_set_dcr_inductor_cat(int loop,int value,bool raw){
+	int rc = 0;
+	int err = 0;
+	int set_value;
+	//fprintf(stderr, "---> Entered dc2dc_set_dcr_inductor_cat %d %d (R)%d\n", loop , value,raw);
+
+	dc2dc_select_i2c(loop , &err);
+	if (0 != err) {
+		//fprintf(stderr, "LOOP %2d SELECT FAILED\n", loop);
+		return 1;
+	}
+
+	if(! raw)
+	{
+		if (value < 0 || value	> 15){
+			fprintf(stderr, "DCR Value of %4d is Invalid. Only 0-15 are supported\n", value);
+			return 4;
+		}
+
+
+		int current_value = i2c_read_word(I2C_DC2DC , 0xD0  , &err);
+		int current_dcr = current_value & 0x000F;
+
+		if (0 != err) {
+			//fprintf(stderr, "LOOP %2d GET DCR INDUCTOR to %d FAILED\n", loop , value);
+			return 3;
+		}
+
+		if (current_dcr == value)
+		{
+			// nothing to do. value already set correctly.
+			return 0;
+		}
+
+		set_value = (current_value & 0xFFFFFFF0) | value;
+		fprintf(stderr, "writing %d to LOOP %2d (%2d)\n", (uint16_t)(0xFFFF & set_value),value,loop );
+
+	}
+	else{
+		set_value = value;
+	}
+	usleep(1000);
+	//fprintf(stderr, "LOOP %2d Setting value(real) %d(%d)\n", loop , value , set_value);
+	i2c_write_word(I2C_DC2DC, 0xD0, (uint16_t)(0xFFFF & set_value), &err);
+	if (0 != err) {
+		//fprintf(stderr, "LOOP %2d SET DCR INDUCTOR to %d FAILED\n", loop , value);
+		return 2;
+	}
+
+	usleep(1000);
+	i2c_write(I2C_DC2DC, 0x15, &err);
+	usleep(5000);
+	if (0 != err) {
+		//fprintf(stderr, "LOOP %2d SET DCR INDUCTOR to %d FAILED SAVING CONF\n", loop , value);
+		return 3;
+	}
+
+	return rc;
+}
 
 static void dc2dc_select_i2c(int loop, int *err) { // 1 or 0
   int top = (loop < 12);
@@ -179,10 +309,12 @@ static void dc2dc_select_i2c(int loop, int *err) { // 1 or 0
 
 void dc2dc_set_vtrim(int loop, uint32_t vtrim, bool vmargin_75low  , int *err) {
 
+#ifdef MINERGATE
   passert(vtrim >= VTRIM_MIN && vtrim <= vm.vtrim_max);
+#endif
 
 #ifndef __MBTEST__
-	  printf("Set VOLTAGE Loop %d Milli:%d Vtrim:%x\n",loop, VTRIM_TO_VOLTAGE_MILLI(vtrim, vm.vmargin_start),vtrim);
+	  printf("Set VOLTAGE Loop %d Milli:%d Vtrim:%x\n",loop, VTRIM_TO_VOLTAGE_MILLI(vtrim),vtrim);
 #endif
 
   pthread_mutex_lock(&i2c_mutex);
@@ -201,7 +333,8 @@ void dc2dc_set_vtrim(int loop, uint32_t vtrim, bool vmargin_75low  , int *err) {
 
   // disengage from scale manager if not needed
 #ifdef MINERGATE
-  vm.loop_vtrim[loop] = vtrim;
+  vm.loop[loop].dc2dc.loop_vtrim = vtrim;
+  vm.loop[loop].dc2dc.loop_margin_low = vmargin_75low;
   vm.loop[loop].dc2dc.last_voltage_change_time = time(NULL);
 #endif
 
@@ -264,7 +397,7 @@ int update_dc2dc_current_temp_measurments(int loop, int* overcurrent, int* overc
     if (!vm.asics_shut_down_powersave) {
         int current = dc2dc_get_current_16s_of_amper(i, overcurrent, overcurrent_warning , &vm.loop[i].dc2dc.dc_temp , &err);
         if (*overcurrent != 0){
-        	psyslog("DC2DC OC ERROR in LOOP %d !!\n", loop);
+        	psyslog(RED "DC2DC OC ERROR in LOOP %d !!" RESET, loop);
 /*
         	psyslog("... last 4 previous measures of DC2DC %d !!\n", loop);
         	psyslog("...   %d\n", vm.loop[i].dc2dc.dc_current_16s_arr[0]);
@@ -272,7 +405,7 @@ int update_dc2dc_current_temp_measurments(int loop, int* overcurrent, int* overc
         	psyslog("...   %d\n", vm.loop[i].dc2dc.dc_current_16s_arr[2]);
         	psyslog("...   %d\n", vm.loop[i].dc2dc.dc_current_16s_arr[3]);
 */
-        	psyslog("...   current measure is %d\n", current);
+        	psyslog(RED "...   current measure is %d\n" RESET, current);
         }
 
 //        vm.loop[i].dc2dc.dc_current_16s_arr[vm.loop[i].dc2dc.dc_current_16s_arr_ptr]= current;
@@ -286,7 +419,7 @@ int update_dc2dc_current_temp_measurments(int loop, int* overcurrent, int* overc
            vm.loop[i].dc2dc.dc_current_16s_arr[3]) >> 2;*/
           
         vm.loop[i].dc2dc.dc_power_watts_16s = 
-        vm.loop[i].dc2dc.dc_current_16s*VTRIM_TO_VOLTAGE_MILLI(vm.loop_vtrim[i], vm.loop_margin_low[i])/1000;
+        vm.loop[i].dc2dc.dc_current_16s*VTRIM_TO_VOLTAGE_MILLI(vm.loop[i].dc2dc.loop_vtrim)/1000;
     } else {
       // This will disable ac2dc scaling
       vm.loop[i].dc2dc.dc_current_16s = 0;

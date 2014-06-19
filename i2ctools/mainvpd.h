@@ -5,6 +5,7 @@
 #define TOP_BOARD 0
 #define BOTTOM_BOARD 1
 #define BOTH_MAIN_BOARDS 2
+#define CUSTOM_LOOPS_SELECTION 3
 
 #define MAIN_BOARD_I2C_SWITCH_EEPROM_PIN 0x80
 #define MAIN_BOARD_I2C_EEPROM_DEV_ADDR 0x57
@@ -39,10 +40,11 @@
 
 typedef struct {
 	//unsigned char vpdrev[MAIN_BOARD_VPD_VPDREV_ADDR_LENGTH + 1]; // 1+1
-	unsigned char serial[ MAIN_BOARD_VPD_SERIAL_ADDR_LENGTH + 1]; // WW[2]+SER[4]+REV[2]+PLANT[2]
-	unsigned char pnr[MAIN_BOARD_VPD_PNR_ADDR_LENGTH + 1];
-	unsigned char revision[MAIN_BOARD_VPD_PNRREV_ADDR_LENGTH + 1];
+	char serial[ MAIN_BOARD_VPD_SERIAL_ADDR_LENGTH + 1]; // WW[2]+SER[4]+REV[2]+PLANT[2]
+	char pnr[MAIN_BOARD_VPD_PNR_ADDR_LENGTH + 1];
+	char revision[MAIN_BOARD_VPD_PNRREV_ADDR_LENGTH + 1];
 } mainboard_vpd_info_t;
+
 
 
 #endif

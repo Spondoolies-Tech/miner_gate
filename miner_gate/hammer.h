@@ -222,8 +222,8 @@ typedef struct {
   uint32_t timestamp; // BIG ENDIAN !!
   uint32_t mrkle_root;
   uint32_t midstate[8];
-  uint32_t winner_nonce; // 0 means no nonce. This means we loose 0.00000000001%
-                         // results. Fuck it.
+  uint32_t winner_nonce[2]; // 0 means no nonce. This means we loose 0.00000000001%
+                            // results.
   // uint32_t work_state;
   // uint32_t nonce;
   uint8_t ntime_max;
@@ -268,6 +268,12 @@ typedef struct {
   uint8_t can_scale_up;
 } HAMMER;
 
+#define INDUCTOR_TYPE_WURTH_REGULAR    0
+#define INDUCTOR_TYPE_WURTH_DEV        1
+#define INDUCTOR_TYPE_VISHAY           2
+#define INDUCTOR_TYPE_WURTH_DEV_2      3
+
+
 // 24 dc2dc
 typedef struct {
   uint8_t dc_temp;
@@ -277,19 +283,28 @@ typedef struct {
   int dc_current_limit_16s;   
   int dc_power_watts_16s;  
   int last_voltage_change_time;
-  
   int max_vtrim_currentwise;
+  unsigned int last_downscale_time;
+  //uint32_t loop_voltage;
+  uint32_t loop_vtrim;
+  bool loop_margin_low;  
+  int inductor_type;
+
+  
   // Guessing added current
 } DC2DC;
+
 
 typedef struct {
   uint8_t id;
   // Last time ac2dc scaling changed limit.
   int last_ac2dc_scaling_on_loop;
   uint8_t enabled_loop;
-  int     asic_temp_sum; // if asics disabled or missing give them fake temp
-  int     asic_hz_sum; // if asics disabled or missing give them fake temp
+  int asic_temp_sum; // if asics disabled or missing give them fake temp
+  int asic_hz_sum; // if asics disabled or missing give them fake temp
   int overheating_asics;
+  int down_scale_type;
+  
   int asics_failing_bist;
   int asic_count;
   int crit_temp_downscale;
@@ -324,6 +339,9 @@ typedef struct {
   int fan_level;
   uint32_t good_loops;
 
+  int slow_corner;
+  int max_asic_temp;
+
   int mgmt_temp_max;
   int start_mine_time;
   // pll can be changed
@@ -351,14 +369,14 @@ typedef struct {
 
   // bollean flag to change PLLS
   int pll_changed;
-
+  int slow_asic_start;
   // jobs right one after another
   int cosecutive_jobs;
 
   int bist_fatal_err;  
   int bist_current;  
   int bist_voltage;  
-
+  int serial_errors;
  
   // ac2dc current and temperature
   int ac2dc_power;  // in ampers. 0 = bad reading.
@@ -366,12 +384,16 @@ typedef struct {
   int total_mhash; 
   int concecutive_bad_wins;
   uint32_t ac2dc_temp;
-  int work_mode; // 0 = slow, 1 = normal, 2 = turbo
+  //int work_mode; // 0 = slow, 1 = normal, 2 = turbo
   int max_fan_level;
+  int force_freq;
+  int voltage_start;
   int vtrim_start;
   bool vmargin_start;
+  int voltage_max;
   int vtrim_max;
   int max_ac2dc_power; 
+  int max_dc2dc_current_16s;   
   int last_second_jobs;
   int cur_leading_zeroes;
   // We give less LZ then needed to do faster scaling.
@@ -387,8 +409,7 @@ typedef struct {
   
   // our loop and dc2dc data
   LOOP loop[LOOP_COUNT];
-  uint32_t loop_vtrim[LOOP_COUNT];
-  bool loop_margin_low[LOOP_COUNT];  
+  int overcurrent_loops;
 
   WIN last_win;  
 } MINER_BOX;

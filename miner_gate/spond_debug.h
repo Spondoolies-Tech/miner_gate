@@ -15,6 +15,7 @@
 #include <assert.h>
 #include <syslog.h>
 #include <sys/time.h>
+#include <time.h>
 
 #define DBG_NET 0
 #define DBG_WINS 1
@@ -66,6 +67,7 @@
   
 #define psyslog(X...)                                                          \
   {                                                                            \
+    printf("%d: ", time(NULL)%10000);                           \
     syslog(LOG_WARNING, X);                                                    \
     printf(X);                                                                 \
   }
@@ -76,5 +78,7 @@ void print_stack();
 
 void start_stopper(struct timeval *tv);
 void end_stopper(struct timeval *tv, const char *name);
+void mg_event(const char *c);
+void mg_status(const char *c);
 
 #endif

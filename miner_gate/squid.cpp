@@ -51,7 +51,9 @@ typedef struct {
   uint32_t i[64];
 } __attribute__((__packed__)) cpi_cmd;
 
-
+#ifdef MINERGATE
+void exit_nicely(int seconds_sleep_before_exit);
+#endif
 
 int parse_squid_status(int v) {
   if (v & BIT_STATUS_SERIAL_Q_TX_FULL)
@@ -370,7 +372,11 @@ uint32_t _read_reg_actual(uint32_t address, uint32_t offset) {
     if (assert_serial_failures) {
       printf("FAILED TO READ 0x%x 0x%x\n", address, offset);
 #ifdef MINERGATE	  
-	  good_loops_fast_test();
+	  //good_loops_fast_test();
+	  vm.serial_errors++;
+	  if (vm.serial_errors > 10000) {
+		exit_nicely(0);
+	  }
 #endif
 #ifdef DC2DC_CHECK_ON_ERROR
 //	  check_for_dc2dc_errors();
@@ -395,7 +401,11 @@ uint32_t _read_reg_actual(uint32_t address, uint32_t offset) {
       printf("Data corruption: READ:0x%x 0x%x / GOT:0x%x 0x%x \n", address,
              offset, values[0], values[1]);
 #ifdef MINERGATE		  
-	   good_loops_fast_test();
+	   //good_loops_fast_test();	   
+	   vm.serial_errors++;
+	   if (vm.serial_errors > 10000) {
+		  exit_nicely(0);
+	   }
 #endif
       //passert(0, "29578");
     } else {

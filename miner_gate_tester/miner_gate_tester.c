@@ -34,6 +34,7 @@ void send_minergate_pkt(const minergate_req_packet* mp_req,
   nbytes = read(socket_fd, (void*)mp_rsp, sizeof(minergate_rsp_packet));  
   passert(nbytes > 0);
  // printf("got %d(%d) bytes\n",mp_rsp->data_length, nbytes);
+  passert(mp_rsp->protocol_version == MINERGATE_PROTOCOL_VERSION);      
   passert(mp_rsp->magic == 0xcaf4);
 }
 
@@ -143,11 +144,15 @@ int main(int argc, char* argv[])
     for (i = 0; i < array_size; i++) { // walk the jobs
        responces++;
        minergate_do_job_rsp* work = mp_rsp->rsp+i;
-       if (work->winner_nonce) {
-         //printf("!!!GOT minergate job rsp %08x %08x\n",work->work_id_in_sw,work->winner_nonce);
+       if (work->winner_nonce[0]) {
          int job_difficulty = 1<<(leading_zeroes-32); // in 4GH units
          rate += job_difficulty;
        }
+       if (work->winner_nonce[1]) {
+         int job_difficulty = 1<<(leading_zeroes-32); // in 4GH units
+         rate += job_difficulty;
+       }
+
     }
 
    

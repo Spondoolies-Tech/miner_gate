@@ -85,7 +85,7 @@ public:
   void minergate_adapter() {}
 } minergate_adapter;
 
-minergate_adapter *adapters[0x100] = { 0 };
+minergate_adapter *adapter = NULL;
 int kill_app = 0;
 
 
@@ -102,6 +102,7 @@ void exit_nicely(int seconds_sleep_before_exit) {
   for (int l = 0 ; l < LOOP_COUNT ; l++) {
     dc2dc_disable_dc2dc(l, &err); 
   }
+  mg_status("OFF");
   set_fan_level(0);
   save_rate_temp(0,0,0);
   psyslog("Here comes unexpected death!\n");
@@ -109,88 +110,70 @@ void exit_nicely(int seconds_sleep_before_exit) {
   exit(0);  
 }
 
-int read_work_mode(int input_voltage) {
-	FILE* file = fopen ("/etc/mg_work_mode", "r");
-  vm.max_ac2dc_power = AC2DC_POWER_LIMIT;
-  if (input_voltage < 130) {
-    psyslog("input_voltage < 130, limit power to 1100\n");
-    vm.max_ac2dc_power = 1100;
+
+
+
+
+//#ifdef THERMAL_TESTING
+int read_force_freq() {
+  FILE* file = fopen ("/etc/mg_freq", "r");
+  if (file > 0) {
+    fscanf (file, "%d", &vm.force_freq);
+    if (vm.force_freq > MAX_ASIC_FREQ || vm.force_freq < 0) {
+      vm.force_freq = 0;
+    }
+    fclose (file);
   }
-  
+}
+//#endif
+
+int read_work_mode(int input_voltage) {
+	FILE* file = fopen ("/etc/mg_custom_mode", "r");
+  vm.max_ac2dc_power = AC2DC_POWER_LIMIT;
 	int i = 0;
-	if (file <= 0) {
-		vm.work_mode = 2;
-	} else {
-  	fscanf (file, "%d", &vm.work_mode);	  
-    if (vm.work_mode < 0 || vm.work_mode > 3) {
-      vm.work_mode = 2;
-    }
+  passert(file != NULL);
+  vm.vmargin_start = true;	
+	fscanf (file, "%d %d %d %d %d", &vm.max_fan_level, &vm.voltage_start, &vm.voltage_max, &vm.max_ac2dc_power, &vm.max_dc2dc_current_16s);
+  assert(vm.max_fan_level <= 100);
+  assert(vm.max_fan_level >= 0);    
+  assert(vm.voltage_start <= 790);
+  assert(vm.voltage_start >= 555);
+  assert(vm.voltage_max   <= 790);
+  assert(vm.voltage_max   >= 555);
+  assert(vm.voltage_max   >= vm.voltage_start);
+  assert(vm.max_ac2dc_power   >= 1000);
+  assert(vm.max_ac2dc_power   <= AC2DC_POWER_LIMIT);
+  if ((vm.max_dc2dc_current_16s   > 70) || (vm.max_dc2dc_current_16s   < 50)) {
+    vm.max_dc2dc_current_16s = 61;
+  }
+  vm.max_dc2dc_current_16s *= 16;
+  fclose (file);
+
+  FILE* ignore_fcc_file = fopen ("/etc/mg_ignore_110_fcc", "r");
+  if (ignore_fcc_file != NULL) {
+    // ignore_fcc_file present
     fclose (file);
-	}
-
-
-  if (vm.work_mode == 3) { // Super ECON
-    vm.vmargin_start = true;  
-    vm.max_fan_level = FAN_QUIET;
-    vm.vtrim_start = VTRIM_START_ECON;
-    vm.vtrim_max = VTRIM_START_ECON;
-  } else if (vm.work_mode == 0 || (input_voltage < 110)) {  // ECON
-    vm.vmargin_start = false;
-    vm.max_fan_level = FAN_QUIET;
-    vm.vtrim_start = VTRIM_START_QUIET;
-    vm.vtrim_max = VTRIM_MAX_QUIET;
-  } else if (vm.work_mode == 1) { // NORMAL
-    vm.vmargin_start = false;
-    vm.max_fan_level = FAN_NORMAL;
-    vm.vtrim_start = VTRIM_START_NORMAL;
-    vm.vtrim_max = VTRIM_MAX_NORMAL;
-  } else if (vm.work_mode == 2) { // TURBO
-    vm.vmargin_start = false;  
-    vm.max_fan_level = FAN_TURBO;
-    vm.vtrim_start = VTRIM_START_TURBO;
-    vm.vtrim_max = VTRIM_MAX_TURBO;
-  } 
-
-
-  file = fopen ("/etc/mg_fan_speed_override", "r");
-  if (file > 0) {
-    int i;
-    fscanf(file, "%d", &i);
-    if (i >= 0 && i <= 100) {
-      vm.max_fan_level = i;
+  } else {
+    if (input_voltage < 130) {
+       psyslog("input_voltage < 130, limit power to 1100\n");
+       vm.max_ac2dc_power = 1100;
+       if (vm.voltage_start > 640) {
+          vm.voltage_start = 640;
+       }
     }
-    fclose (file);
   } 
+  vm.vtrim_start = VOLTAGE_TO_VTRIM_MILLI(vm.voltage_start);
+  vm.vtrim_max = VOLTAGE_TO_VTRIM_MILLI(vm.voltage_max);
 
+  // compute VTRIM
+  psyslog(
+    "vm.max_fan_level: %d, vm.voltage_start: %d, vm.voltage_end: %d vm.vtrim_start: %x, vm.vtrim_end: %x\n"
+    ,vm.max_fan_level, vm.voltage_start, vm.voltage_max, vm.vtrim_start, vm.vtrim_max); 
 
-  file = fopen ("/etc/mg_max_voltage", "r");
-  if (file > 0) {
-    int vtrim;
-    fscanf(file, "%d", &vtrim);
-    if (vtrim >= 0 && i <= VTRIM_810 - VTRIM_MIN) {
-      vm.vtrim_max = VTRIM_MIN+vtrim;
-      if (vm.vtrim_start > vm.vtrim_max) {
-        vm.vtrim_start = vm.vtrim_max;
-      }
-    }
-    fclose (file);
-  } 
-
-/*   
-   file = fopen ("/etc/mg_psu_limit", "r");
-   if (file > 0) {
-    int limit;
-    fscanf(file, "%d", &limit);
-    if (limit >= 500) {
-      vm.max_ac2dc_power = limit;
-    }
-    fclose (file);
-  } 
-*/
-
-  printf("WORK MODE = %d\n", vm.work_mode);
 	
 }
+
+
 
 
 static void sighandler(int sig)
@@ -198,12 +181,12 @@ static void sighandler(int sig)
   /* Restore signal handlers so we can still quit if kill_work fails */  
   sigaction(SIGTERM, &termhandler, NULL);
   sigaction(SIGINT, &inthandler, NULL);
-  exit_nicely(2);
+  exit_nicely(0);
 }
 
 
 void print_adapter(FILE *f ) {
-  minergate_adapter *a = adapters[0];
+  minergate_adapter *a = adapter;
   if (a) {
     fprintf(f, "Adapter queues: rsp=%d, req=%d\n", 
             a->work_minergate_rsp.size(),
@@ -213,11 +196,11 @@ void print_adapter(FILE *f ) {
   }
 }
 
-void free_minergate_adapter(minergate_adapter *adapter) {
-  close(adapter->connection_fd);
-  free(adapter->last_req);
-  free(adapter->next_rsp);
-  delete adapter;
+void free_minergate_adapter(minergate_adapter *a) {
+  close(a->connection_fd);
+  free(a->last_req);
+  free(a->next_rsp);
+  delete a;
 }
 
 int SWAP32(int x) {
@@ -232,64 +215,62 @@ void push_work_rsp(RT_JOB *work) {
   pthread_mutex_lock(&network_hw_mutex);
   minergate_do_job_rsp r;
   uint8_t adapter_id = work->adapter_id;
-  minergate_adapter *adapter = adapters[adapter_id];
-  if (!adapter) {
+  minergate_adapter *a = adapter;
+  if (!a) {
     DBG(DBG_NET, "Adapter disconected! Packet to garbage\n");
     pthread_mutex_unlock(&network_hw_mutex);
     return;
   }
   int i;
   r.mrkle_root = work->mrkle_root;
-  r.winner_nonce = work->winner_nonce;
+  r.winner_nonce[0] = work->winner_nonce[0];
+  r.winner_nonce[1] = work->winner_nonce[1];  
   r.work_id_in_sw = work->work_id_in_sw;
   r.ntime_offset = work->ntime_offset;
-  //printf("ntime offset set to %d (%x)\n",r.ntime_offset, work->timestamp);
   r.res = 0;
-  adapter->work_minergate_rsp.push(r);
-  //passert(adapter->work_minergate_rsp.size() <= MINERGATE_TOTAL_QUEUE * 2);
+  a->work_minergate_rsp.push(r);
   pthread_mutex_unlock(&network_hw_mutex);
 }
 
 //
 // returns success, fills W with new job from adapter queue
 //
-int pull_work_req_adapter(RT_JOB *w, minergate_adapter *adapter) {
+int pull_work_req_adapter(RT_JOB *w, minergate_adapter *a) {
   minergate_do_job_req r;
 
-  if (!adapter->work_minergate_req.empty()) {
-    r = adapter->work_minergate_req.front();
-    adapter->work_minergate_req.pop();
+  if (!a->work_minergate_req.empty()) {
+    r = a->work_minergate_req.front();
+    a->work_minergate_req.pop();
     w->difficulty = r.difficulty;
     memcpy(w->midstate, r.midstate, sizeof(r.midstate));
-    w->adapter_id = adapter->adapter_id;
+    w->adapter_id = a->adapter_id;
     w->mrkle_root = r.mrkle_root;
     w->timestamp = r.timestamp;
-    w->winner_nonce = 0;
+    w->winner_nonce[0] = 0;
+    w->winner_nonce[1] = 0;    
     w->work_id_in_sw = r.work_id_in_sw;
     w->work_state = 0;
     w->leading_zeroes = r.leading_zeroes;
     w->ntime_max = r.ntime_limit;
     w->ntime_offset = r.ntime_offset;
-    //printf("Roll limit:%d\n",r.ntime_limit);
     return 1;
   }
   return 0;
 }
 
 // returns success
-int has_work_req_adapter(minergate_adapter *adapter) {
-  return (adapter->work_minergate_req.size());
+int has_work_req_adapter(minergate_adapter *a) {
+  return (a->work_minergate_req.size());
 }
 
 // returns success
 int pull_work_req(RT_JOB *w) {
   // go over adapters...
-  // TODO
   pthread_mutex_lock(&network_hw_mutex);
   int ret = false;
-  minergate_adapter *adapter = adapters[0];
-  if (adapter) {
-      ret =pull_work_req_adapter(w, adapter);
+  minergate_adapter *a = adapter;
+  if (a) {
+      ret =pull_work_req_adapter(w, a);
   }
   pthread_mutex_unlock(&network_hw_mutex);
   return ret;
@@ -297,36 +278,48 @@ int pull_work_req(RT_JOB *w) {
 
 int has_work_req() {
   pthread_mutex_lock(&network_hw_mutex);
-  minergate_adapter *adapter = adapters[0];
-  if (adapter) {
-    has_work_req_adapter(adapter);
+  minergate_adapter *a = adapter;
+  if (a) {
+    has_work_req_adapter(a);
   }
   pthread_mutex_unlock(&network_hw_mutex);
 }
 
-void push_work_req(minergate_do_job_req *req, minergate_adapter *adapter) {
+void push_work_req(minergate_do_job_req *req, minergate_adapter *a) {
   pthread_mutex_lock(&network_hw_mutex);
-  if (adapter->work_minergate_req.size() >= (MINERGATE_TOTAL_QUEUE - 10)) {
+#if 1
+  if (a->work_minergate_req.size() >= (MINERGATE_TOTAL_QUEUE - 10)) {
     minergate_do_job_rsp rsp;
     rsp.mrkle_root = req->mrkle_root;
-    rsp.winner_nonce = 0;
+    rsp.winner_nonce[0] = 0;
+    rsp.winner_nonce[1] = 0;    
     rsp.ntime_offset = req->ntime_offset;    
     rsp.work_id_in_sw = req->work_id_in_sw;
     rsp.res = 1;
     // printf("returning %d %d\n",req->work_id_in_sw,rsp.work_id_in_sw);
-    adapter->work_minergate_rsp.push(rsp);
+    a->work_minergate_rsp.push(rsp);
   } else {
-    adapter->work_minergate_req.push(*req);
+    a->work_minergate_req.push(*req); 
   }
+#else
+  if (a->work_minergate_req.size() >= (MINERGATE_TOTAL_QUEUE - 10)) {
+    RT_JOB w;
+    pthread_mutex_unlock(&network_hw_mutex);
+    pull_work_req(&w);
+    push_work_rsp(&w);
+    pthread_mutex_lock(&network_hw_mutex);   
+  }
+  a->work_minergate_req.push(*req); 
+#endif
   pthread_mutex_unlock(&network_hw_mutex);
 }
 
 // returns success
-int pull_work_rsp(minergate_do_job_rsp *r, minergate_adapter *adapter) {
+int pull_work_rsp(minergate_do_job_rsp *r, minergate_adapter *a) {
   pthread_mutex_lock(&network_hw_mutex);
-  if (!adapter->work_minergate_rsp.empty()) {
-    *r = adapter->work_minergate_rsp.front();
-    adapter->work_minergate_rsp.pop();
+  if (!a->work_minergate_rsp.empty()) {
+    *r = a->work_minergate_rsp.front();
+    a->work_minergate_rsp.pop();
     pthread_mutex_unlock(&network_hw_mutex);
     return 1;
   }
@@ -339,14 +332,12 @@ extern pthread_mutex_t hammer_mutex;
 //
 void *connection_handler_thread(void *adptr) {
   psyslog("New adapter connected!\n");
-  minergate_adapter *adapter = (minergate_adapter *)adptr;
-  // DBG(DBG_NET,"connection_fd = %d\n", adapter->connection_fd);
+  minergate_adapter *a = (minergate_adapter *)adptr;
+  // DBG(DBG_NET,"connection_fd = %d\n", a->connection_fd);
   set_light(LIGHT_GREEN, LIGHT_MODE_FAST_BLINK);
-
-  adapter->adapter_id = 0;
-  adapters[0] = adapter;
-  adapter->last_req = allocate_minergate_packet_req(0xca, 0xfe);
-  adapter->next_rsp = allocate_minergate_packet_rsp(0xca, 0xfe);
+  a->adapter_id = 0;
+  a->last_req = allocate_minergate_packet_req(0xca, 0xfe);
+  a->next_rsp = allocate_minergate_packet_rsp(0xca, 0xfe);
 
   vm.idle_probs = 0;
   vm.busy_probs = 0;
@@ -365,13 +356,14 @@ void *connection_handler_thread(void *adptr) {
   struct timeval last_time; 
   gettimeofday(&now, NULL);
   gettimeofday(&last_time, NULL);
-  while ((nbytes = read(adapter->connection_fd, (void *)adapter->last_req,
+  while ((nbytes = read(a->connection_fd, (void *)a->last_req,
                         sizeof(minergate_req_packet))) > 0) {
     struct timeval now;      
     struct timeval last_time; 
     int usec;
     if (nbytes) {
-      passert(adapter->last_req->magic == 0xcaf4);
+      passert(a->last_req->protocol_version == MINERGATE_PROTOCOL_VERSION);      
+      passert(a->last_req->magic == 0xcaf4);
       gettimeofday(&now, NULL);
 
       usec = (now.tv_sec - last_time.tv_sec) * 1000000;
@@ -389,44 +381,53 @@ void *connection_handler_thread(void *adptr) {
       // Reset packet.
       int i;
       // Return all previous responces
-      int rsp_count = adapter->work_minergate_rsp.size();
+      int rsp_count = a->work_minergate_rsp.size();
       DBG(DBG_NET, "Sending %d minergate_do_job_rsp\n", rsp_count);
       if (rsp_count > MAX_RESPONDS) {
         rsp_count = MAX_RESPONDS;
       }
 
       for (i = 0; i < rsp_count; i++) {
-        minergate_do_job_rsp *rsp = adapter->next_rsp->rsp + i;
-        int res = pull_work_rsp(rsp, adapter);
+        minergate_do_job_rsp *rsp = a->next_rsp->rsp + i;
+        int res = pull_work_rsp(rsp, a);
         passert(res);
       }
-      adapter->next_rsp->rsp_count = rsp_count;
+      a->next_rsp->rsp_count = rsp_count;
       int mhashes_done = (vm.total_mhash>>10)*(usec>>10);
-      adapter->next_rsp->gh_div_10_rate = mhashes_done>>10;  
-
-      int array_size = adapter->last_req->req_count;
+      a->next_rsp->gh_div_10_rate = mhashes_done>>10;  
+      int array_size = a->last_req->req_count;
       for (i = 0; i < array_size; i++) { // walk the jobs
-        minergate_do_job_req *work = adapter->last_req->req + i;
-        push_work_req(work, adapter);
+        minergate_do_job_req *work = a->last_req->req + i;
+        push_work_req(work, a);
       }
 
-      // parse_minergate_packet(adapter->last_req, minergate_data_processor,
-      // adapter, adapter);
-      adapter->next_rsp->request_id = adapter->last_req->request_id;
+      if (a->last_req->mask & 0x02) {
+         // Drop old requests
+         psyslog("----- Drop old requests\n");
+         RT_JOB w;
+         while (pull_work_req(&w)) {
+           // Push to complete queue
+           push_work_rsp(&w);
+         }
+       }
+
+
+      // parse_minergate_packet(a->last_req, minergate_data_processor,
+      // a, a);
+      a->next_rsp->request_id = a->last_req->request_id;
       // Send response
-      write(adapter->connection_fd, (void *)adapter->next_rsp,
+      write(a->connection_fd, (void *)a->next_rsp,
             sizeof(minergate_rsp_packet));
 
       // Clear packet.
-      adapter->next_rsp->rsp_count = 0;
+      a->next_rsp->rsp_count = 0;
       last_time = now;
     }
   }
-  adapters[adapter->adapter_id] = NULL;  
+  free_minergate_adapter(a);  
+  adapter = NULL;  
   set_light(LIGHT_GREEN, LIGHT_MODE_SLOW_BLINK);
-  free_minergate_adapter(adapter);
   // Clear the real_time_queue from the old packets
-  adapter = NULL;
   return 0;
 }
 
@@ -613,7 +614,15 @@ int main(int argc, char *argv[]) {
   psyslog("ac2dc_init\n");
   ac2dc_init(&input_voltage);
   psyslog("Read work mode\n");
+  FILE* file = fopen ("/etc/voltage", "w");
+  if (file > 0) {
+    fprintf (file, "%d", input_voltage);	  
+    fclose(file);
+  }
+  printf("Voltage: %d\n", input_voltage);  
   read_work_mode(input_voltage);
+  read_force_freq();
+
   // Must be done after "read_work_mode"
   psyslog("Read  NVM\n");
   load_nvm_ok();
@@ -643,6 +652,13 @@ int main(int argc, char *argv[]) {
           "ERROR: no 0xdeadbeef in squid pong register!\n");
 
 
+// add DCR (coils/inductors/sllilim) to status
+  int top_iductor = vm.loop[0].dc2dc.inductor_type;
+  int bottom_iductor = vm.loop[12].dc2dc.inductor_type;
+  static char stat[64];
+  sprintf(stat, "DCRTOP %d DCRBOT %d", top_iductor , bottom_iductor);
+
+  mg_status(stat);
 
   // Find good loops
   // Update vm.good_loops
@@ -686,6 +702,7 @@ int main(int argc, char *argv[]) {
   // Set all engines to 0x7FFF
   psyslog("hammer initialisation done %d\n", __LINE__);
   thermal_init();
+  vm.max_asic_temp = MAX_ASIC_TEMPERATURE;
   
 
   // Enables NVM engines in ASICs.
@@ -720,17 +737,19 @@ int main(int argc, char *argv[]) {
   passert(s == 0);
 
 
-  minergate_adapter *adapter = new minergate_adapter;
+  adapter = new minergate_adapter;
   passert((int)adapter);
   while ((adapter->connection_fd =
               accept(socket_fd, (struct sockaddr *)&address, &address_length)) >
          -1) {
     // Only 1 thread supportd so far...
-    psyslog("New adapter connected %d %x!\n", adapter->connection_fd, adapter);
-    s = pthread_create(&adapter->conn_pth, NULL, connection_handler_thread,
-                       (void *)adapter);
+    psyslog("New a connected %d %x!\n", adapter->connection_fd, adapter);
+    connection_handler_thread((void *)adapter);
+    /*
+    s = pthread_create(&a->conn_pth, NULL, connection_handler_thread,
+                       (void *)a);
     passert(s == 0);
-
+    */
     adapter = new minergate_adapter;
     passert((int)adapter);
   }
