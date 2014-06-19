@@ -149,7 +149,10 @@ int asic_frequency_update_nrt_fast() {
             }
             if (all_bad) {
               psyslog("ERROR: ALL ASICS ON LOOP %d ARE BAD\n", loop);
-              
+              static char x[200]; 
+              sprintf(x, "ALL ASICS ON LOOP %d ARE BAD", loop);
+              mg_event(x);
+              exit_nicely();
             }
             continue;
           }
