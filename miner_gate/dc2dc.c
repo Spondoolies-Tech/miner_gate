@@ -321,6 +321,7 @@ void dc2dc_set_vtrim(int loop, uint32_t vtrim, bool vmargin_75low  , int *err) {
 
   // printf("%d\n",v);
   // int err = 0;
+  dc2dc_init_loop(loop);
   dc2dc_select_i2c(loop, err);
 
   i2c_write_word(I2C_DC2DC, 0xd4, vtrim&0xFFFF);

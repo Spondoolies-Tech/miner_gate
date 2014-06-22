@@ -115,6 +115,7 @@ void loop_up(int l) {
 
 #else
 
+void exit_nicely(int seconds_sleep_before_exit);
 
 int asic_frequency_update_nrt_fast() {    
   pause_asics_if_needed();
@@ -152,7 +153,7 @@ int asic_frequency_update_nrt_fast() {
               static char x[200]; 
               sprintf(x, "ALL ASICS ON LOOP %d ARE BAD", loop);
               mg_event(x);
-              exit_nicely();
+              exit_nicely(1);
             }
             continue;
           }
