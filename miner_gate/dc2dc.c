@@ -87,6 +87,11 @@ void dc2dc_init_loop(int loop) {
       vm.loop[loop].enabled_loop = 0;
     }
 
+    i2c_write_word(I2C_DC2DC, 0x4a, 0xf857);  // OC warn
+    i2c_write_word(I2C_DC2DC, 0x46, 0xf864);  // OC Faultsss
+    i2c_write_word(I2C_DC2DC, 0x4a, 0xf857);  // OC warn
+    i2c_write_word(I2C_DC2DC, 0x46, 0xf864);  // OC Faultsss
+/*
     if (vm.loop[loop].dc2dc.inductor_type == INDUCTOR_TYPE_WURTH_DEV) {
       i2c_write_word(I2C_DC2DC, 0x4a, 0xf857); 	// OC warn
       i2c_write_word(I2C_DC2DC, 0x46, 0xf864); 	// OC Faultsss
@@ -94,7 +99,7 @@ void dc2dc_init_loop(int loop) {
       i2c_write_word(I2C_DC2DC, 0x4a, 0xf857); 	// OC warn
       i2c_write_word(I2C_DC2DC, 0x46, 0xf864); 	// OC Faultsss
     }
-
+*/
 #else
     // non MINER_GATE - ATE utils etc - with no vm struct dependency
       int inductor_type = (0x000F & i2c_read_word(I2C_DC2DC, 0xD0));
@@ -113,9 +118,16 @@ void dc2dc_init_loop(int loop) {
         psyslog("Error: Unknown inductor type %d\n", inductor_type);
       }
 #endif
+
+    i2c_write_word(I2C_DC2DC, 0x4a, 0xf857);  // OC warn
+    i2c_write_word(I2C_DC2DC, 0x46, 0xf864);  // OC Faultsss
+
+
     i2c_write_byte(I2C_DC2DC, 0x47, 0x3C);		// OC fault response
     i2c_write_byte(I2C_DC2DC, 0xd7, 0x03);		// PG limits
     i2c_write_byte(I2C_DC2DC, 0x02, 0x02);		// ON/OFF conditions
+     
+    
     //i2c_write(I2C_DC2DC, 0x15);
     //usleep(50000);
     i2c_write(I2C_DC2DC, 0x03);
@@ -321,10 +333,11 @@ void dc2dc_set_vtrim(int loop, uint32_t vtrim, bool vmargin_75low  , int *err) {
 
   // printf("%d\n",v);
   // int err = 0;
-  dc2dc_init_loop(loop);
   dc2dc_select_i2c(loop, err);
 
   i2c_write_word(I2C_DC2DC, 0xd4, vtrim&0xFFFF);
+  //i2c_write_word(I2C_DC2DC, 0x4a, 0xf857); 	// OC warn
+  //i2c_write_word(I2C_DC2DC, 0x46, 0xf864); 	// OC Faultsss
 
   if (vmargin_75low) {
     i2c_write_byte(I2C_DC2DC, 0x01, 0x14);

@@ -89,7 +89,7 @@ minergate_adapter *adapter = NULL;
 int kill_app = 0;
 
 
-extern void save_rate_temp(int back_tmp, int front_tmp, int total_mhash);
+extern void save_rate_temp(int back_tmp_t, int front_tmp_f, int front_tmp, int total_mhash);
 
 void exit_nicely(int seconds_sleep_before_exit) {
   int err;
@@ -104,7 +104,7 @@ void exit_nicely(int seconds_sleep_before_exit) {
   }
   mg_status("OFF");
   set_fan_level(0);
-  save_rate_temp(0,0,0);
+  save_rate_temp(0,0,0,0);
   psyslog("Here comes unexpected death!\n");
   usleep(seconds_sleep_before_exit*1000*1000);
   exit(0);  
