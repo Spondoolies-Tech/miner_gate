@@ -39,6 +39,7 @@
 
 static int now; // cahce time
 extern int kill_app;
+void store_voltages();
 
 int  loop_can_down(int l) {
   if (l == -1)
@@ -117,7 +118,7 @@ void loop_up(int l) {
 
 void exit_nicely(int seconds_sleep_before_exit);
 
-int asic_frequency_update_nrt_fast() {    
+int asic_frequency_update_nrt_fast_initial() {    
   pause_asics_if_needed();
   int one_ok = 0;
   for (int l = 0 ; l < LOOP_COUNT ; l++) {
@@ -152,7 +153,8 @@ int asic_frequency_update_nrt_fast() {
               psyslog("ERROR: ALL ASICS ON LOOP %d ARE BAD\n", loop);
               static char x[200]; 
               sprintf(x, "ALL ASICS ON LOOP %d ARE BAD", loop);
-              mg_event(x);
+              mg_event(x);              
+              store_voltages();
               exit_nicely(1);
             }
             continue;
@@ -198,7 +200,7 @@ void set_working_voltage_discover_top_speeds() {
     resume_asics_if_needed();
     //usleep(10000);    
     do_bist_ok_rt(0);
-    one_ok = asic_frequency_update_nrt_fast();
+    one_ok = asic_frequency_update_nrt_fast_initial();
  } while (one_ok && (!kill_app) && (current_freq++)<MAX_ASIC_FREQ);
 
 

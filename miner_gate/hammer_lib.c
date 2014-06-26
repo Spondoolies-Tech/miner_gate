@@ -803,7 +803,31 @@ void one_minute_tasks() {
 
 
 void ten_second_tasks() { 
- 
+  // see if we have bad loops:
+  for (int l = 0; l < LOOP_COUNT; l++) {
+    LOOP *loop = &vm.loop[l];
+    if (!loop->enabled_loop) {
+      continue;
+    }
+    int runaways_count = 0;
+    for (int addr = l*HAMMERS_PER_LOOP; addr < (l+1)*HAMMERS_PER_LOOP; addr++) {
+      if (!vm.hammer[addr].asic_present) {
+        runaways_count++;
+      }
+    }
+
+    if (runaways_count == HAMMERS_PER_LOOP) {
+      // All ASICS ran away - restart minergate
+      psyslog("runaways asics on loop %d!\n", l);
+      static char x[200]; 
+      sprintf(x, "runaways asics on loop %d!\n", l);
+      mg_event(x); 
+      store_voltages();
+      exit_nicely(2);
+    }
+  }
+
+  
 }
 /*
 pthread_mutex_t i2c_mutex = PTHREAD_MUTEX_INITIALIZER;
@@ -1003,7 +1027,8 @@ int update_vm_with_currents_and_temperatures_nrt() {
       vm.overcurrent_loops++;
       dc2dc_disable_dc2dc(loop, &err);
       if (vm.overcurrent_loops > 3) {
-        psyslog("TOO MANY OC LOOPS, EXITING\n");
+        psyslog("TOO MANY OC LOOPS, EXITING\n");        
+        store_voltages();
         exit_nicely(5);
       }      
 #endif 
@@ -1466,7 +1491,8 @@ void *i2c_state_machine_nrt(void *p) {
         print_scaling();
         if (vm.last_second_jobs == 0) {
           vm.not_really_mining_seconds++;
-          if (vm.not_really_mining_seconds == 60) {
+          if (vm.not_really_mining_seconds == 60) {            
+            store_voltages();
             exit_nicely(1);
           }
         } else {

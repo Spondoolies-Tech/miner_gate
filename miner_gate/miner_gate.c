@@ -89,7 +89,7 @@ minergate_adapter *adapter = NULL;
 int kill_app = 0;
 
 
-extern void save_rate_temp(int back_tmp_t, int front_tmp_f, int front_tmp, int total_mhash);
+extern void save_rate_temp(int back_tmp,int back_tmp2,  int front_tmp, int total_mhash);
 
 void exit_nicely(int seconds_sleep_before_exit) {
   int err;
@@ -111,7 +111,82 @@ void exit_nicely(int seconds_sleep_before_exit) {
 }
 
 
+void store_voltages() {
+  /*
+    FILE *f = fopen("/var/run/mg_voltages_store", "w");
+    if (!f) {
+      psyslog("Failed to open mg_voltages_store file\n");
+      return;
+    }
+    fprintf(f, "%d %d %d %d | %d %d %d %d | %d %d %d %d | %d %d %d %d | %d %d %d %d | %d %d %d %d\n", 
+              vm.loop[0].dc2dc.loop_vtrim,
+              vm.loop[1].dc2dc.loop_vtrim,
+              vm.loop[2].dc2dc.loop_vtrim,
+              vm.loop[3].dc2dc.loop_vtrim,
+              vm.loop[4].dc2dc.loop_vtrim,
+              vm.loop[5].dc2dc.loop_vtrim,
+              vm.loop[6].dc2dc.loop_vtrim,
+              vm.loop[7].dc2dc.loop_vtrim,              
+              vm.loop[8].dc2dc.loop_vtrim,
+              vm.loop[9].dc2dc.loop_vtrim,
+              vm.loop[10].dc2dc.loop_vtrim,
+              vm.loop[11].dc2dc.loop_vtrim,
+              vm.loop[12].dc2dc.loop_vtrim,
+              vm.loop[13].dc2dc.loop_vtrim,
+              vm.loop[14].dc2dc.loop_vtrim,
+              vm.loop[15].dc2dc.loop_vtrim,              
+              vm.loop[16].dc2dc.loop_vtrim,
+              vm.loop[17].dc2dc.loop_vtrim,
+              vm.loop[18].dc2dc.loop_vtrim,              
+              vm.loop[19].dc2dc.loop_vtrim,
+              vm.loop[20].dc2dc.loop_vtrim,
+              vm.loop[21].dc2dc.loop_vtrim,              
+              vm.loop[22].dc2dc.loop_vtrim,              
+              vm.loop[23].dc2dc.loop_vtrim
+    );
+    fclose(f);
+    */
+}
 
+
+void load_voltages() {
+  /*
+    FILE *f = fopen("/var/run/mg_voltages_store", "r");
+    if (!f) {
+      psyslog("Failed to open mg_voltages_store file for reading\n");
+      return;
+    }
+    
+    fscanf(f, "%d %d %d %d | %d %d %d %d | %d %d %d %d | %d %d %d %d | %d %d %d %d | %d %d %d %d\n", 
+              &vm.loop[0].dc2dc.loop_vtrim,
+              &vm.loop[1].dc2dc.loop_vtrim,
+              &vm.loop[2].dc2dc.loop_vtrim,
+              &vm.loop[3].dc2dc.loop_vtrim,
+              &vm.loop[4].dc2dc.loop_vtrim,
+              &vm.loop[5].dc2dc.loop_vtrim,
+              &vm.loop[6].dc2dc.loop_vtrim,
+              &vm.loop[7].dc2dc.loop_vtrim,              
+              &vm.loop[8].dc2dc.loop_vtrim,
+              &vm.loop[9].dc2dc.loop_vtrim,
+              &vm.loop[10].dc2dc.loop_vtrim,
+              &vm.loop[11].dc2dc.loop_vtrim,
+              &vm.loop[12].dc2dc.loop_vtrim,
+              &vm.loop[13].dc2dc.loop_vtrim,
+              &vm.loop[14].dc2dc.loop_vtrim,
+              &vm.loop[15].dc2dc.loop_vtrim,              
+              &vm.loop[16].dc2dc.loop_vtrim,
+              &vm.loop[17].dc2dc.loop_vtrim,
+              &vm.loop[18].dc2dc.loop_vtrim,              
+              &vm.loop[19].dc2dc.loop_vtrim,
+              &vm.loop[20].dc2dc.loop_vtrim,
+              &vm.loop[21].dc2dc.loop_vtrim,              
+              &vm.loop[22].dc2dc.loop_vtrim,              
+              &vm.loop[23].dc2dc.loop_vtrim
+    );
+    fclose(f);
+    unlink("/var/run/mg_voltages_store");
+    */
+}
 
 
 //#ifdef THERMAL_TESTING
@@ -664,6 +739,7 @@ int main(int argc, char *argv[]) {
   // Update vm.good_loops
   // Set ASICS on all disabled loops to asic_ok=0
   discover_good_loops();
+  load_voltages();
 
  
 

@@ -157,8 +157,9 @@ void dc2dc_disable_dc2dc(int loop, int *err) {
    //printf("%s:%d\n",__FILE__, __LINE__);
   pthread_mutex_lock(&i2c_mutex);
   //printf("%s:%d\n",__FILE__, __LINE__);
-  
   dc2dc_select_i2c(loop, err);
+  vm.loop[loop].enabled_loop = 0;
+  vm.good_loops = vm.good_loops & ~(1<<loop);
   i2c_write_byte(I2C_DC2DC, 0x02, 0x12, err);
   dc2dc_i2c_close();
   pthread_mutex_unlock(&i2c_mutex);
