@@ -260,6 +260,8 @@ void ac2dc_scaling_loop(int l) {
       }
     }    
   }
+
+  
   vm.loop[l].dc2dc.last_voltage_change_time = time(NULL);
 
 
@@ -270,6 +272,7 @@ void ac2dc_scaling_loop(int l) {
 
 // Called from low-priority thread.
 void ac2dc_scaling() {
+
   // First raws
   for (int l = 0; l < 4; l++) {
     ac2dc_scaling_loop(l);

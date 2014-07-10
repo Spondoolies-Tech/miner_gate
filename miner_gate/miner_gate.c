@@ -202,6 +202,75 @@ int read_force_freq() {
 }
 //#endif
 
+
+int read_work_mode(int input_voltage) {
+	FILE* file = fopen ("/etc/mg_custom_mode", "r");
+  vm.max_ac2dc_power = AC2DC_POWER_LIMIT;
+	int i = 0;
+  passert(file != NULL);
+  vm.vmargin_start = true;	
+	int res = fscanf (file, "CONF:%d %d %d %d %d %d", &vm.max_fan_level, &vm.voltage_start_top, &vm.voltage_start_bot, &vm.voltage_max, &vm.max_ac2dc_power, &vm.max_dc2dc_current_16s);
+  if (res < 2) {
+    // Create new config file
+    int fan = 0, start = 0, max = 0, ac2dc = 0, dc2dc_cur = 0;
+    res = fscanf (file, "%d %d %d %d %d", 
+      &fan, &start, &max, &ac2dc, &dc2dc_cur);
+    passert(res >= 4);
+    fclose (file);
+    unlink("/etc/mg_custom_mode");
+    file = fopen ("/etc/mg_custom_mode", "w");    
+    fprintf (file, "CONF:%d %d %d %d %d %d\n", fan, start, start, max, ac2dc, dc2dc_cur);
+    fflush(file);
+    fclose(file);
+    file = fopen ("/etc/mg_custom_mode", "r");
+  }
+  rewind(file);
+  res = fscanf(file, "CONF:%d %d %d %d %d %d", &vm.max_fan_level, &vm.voltage_start_top, &vm.voltage_start_bot, &vm.voltage_max, &vm.max_ac2dc_power, &vm.max_dc2dc_current_16s);
+  printf("res=%d\n", res);
+  passert(res >= 4);
+  
+  assert(vm.max_fan_level <= 100);
+  assert(vm.max_fan_level >= 0);    
+  assert(vm.voltage_start_bot <= 790);
+  assert(vm.voltage_start_bot >= 555);
+  assert(vm.voltage_start_top <= 790);
+  assert(vm.voltage_start_top >= 555);  
+  assert(vm.voltage_max   <= 790);
+  assert(vm.voltage_max   >= 555);
+  assert(vm.voltage_max   >= vm.voltage_start_bot);
+  assert(vm.voltage_max   >= vm.voltage_start_top);  
+  assert(vm.max_ac2dc_power   >= 700);
+  assert(vm.max_ac2dc_power   <= AC2DC_POWER_LIMIT);
+  if ((vm.max_dc2dc_current_16s   > 70) || (vm.max_dc2dc_current_16s   < 50)) {
+    vm.max_dc2dc_current_16s = 61;
+  }
+  vm.max_dc2dc_current_16s *= 16;
+  fclose (file);
+
+  FILE* ignore_fcc_file = fopen ("/etc/mg_ignore_110_fcc", "r");
+  if (ignore_fcc_file != NULL) {
+    // ignore_fcc_file present
+    fclose (file);
+  } else {
+    if (input_voltage < 130) {
+       psyslog("input_voltage < 130, limit power to 1100\n");
+       vm.max_ac2dc_power = 1100;
+    }
+  } 
+  vm.vtrim_start_top = VOLTAGE_TO_VTRIM_MILLI(vm.voltage_start_top);  
+  vm.vtrim_start_bot = VOLTAGE_TO_VTRIM_MILLI(vm.voltage_start_bot);
+  vm.vtrim_max = VOLTAGE_TO_VTRIM_MILLI(vm.voltage_max);
+
+  // compute VTRIM
+  psyslog(
+    "vm.max_fan_level: %d, vm.voltage_start: %d/%d,  vm.voltage_end: %d vm.vtrim_start: %x/%x, vm.vtrim_end: %x\n"
+    ,vm.max_fan_level, vm.voltage_start_top, vm.voltage_start_bot,  vm.voltage_max, vm.vtrim_start_top,vm.vtrim_start_bot, vm.vtrim_max); 
+
+	
+}
+
+
+/*
 int read_work_mode(int input_voltage) {
 	FILE* file = fopen ("/etc/mg_custom_mode", "r");
   vm.max_ac2dc_power = AC2DC_POWER_LIMIT;
@@ -243,11 +312,9 @@ int read_work_mode(int input_voltage) {
   // compute VTRIM
   psyslog(
     "vm.max_fan_level: %d, vm.voltage_start: %d, vm.voltage_end: %d vm.vtrim_start: %x, vm.vtrim_end: %x\n"
-    ,vm.max_fan_level, vm.voltage_start, vm.voltage_max, vm.vtrim_start, vm.vtrim_max); 
-
-	
+    ,vm.max_fan_level, vm.voltage_start, vm.voltage_max, vm.vtrim_start, vm.vtrim_max);
 }
-
+*/
 
 
 

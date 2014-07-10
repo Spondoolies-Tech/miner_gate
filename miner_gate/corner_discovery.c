@@ -116,7 +116,7 @@ void discover_good_loops() {
     if (vm.loop[i].enabled_loop && test_serial(i)) {
       vm.loop[i].enabled_loop = 1;
       vm.loop[i].dc2dc.max_vtrim_currentwise = vm.vtrim_max;
-      vm.loop[i].dc2dc.loop_vtrim = vm.vtrim_start;
+      vm.loop[i].dc2dc.loop_vtrim = (i<12)?vm.vtrim_start_top:vm.vtrim_start_bot;
       vm.loop[i].dc2dc.loop_margin_low = vm.vmargin_start;
       vm.loop[i].dc2dc.dc_current_limit_16s = vm.max_dc2dc_current_16s;
       good_loops |= 1 << i;

@@ -387,8 +387,10 @@ typedef struct {
   //int work_mode; // 0 = slow, 1 = normal, 2 = turbo
   int max_fan_level;
   int force_freq;
-  int voltage_start;
-  int vtrim_start;
+  int voltage_start_top;
+  int voltage_start_bot;  
+  int vtrim_start_top;
+  int vtrim_start_bot;  
   bool vmargin_start;
   int voltage_max;
   int vtrim_max;

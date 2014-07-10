@@ -342,6 +342,7 @@ void maybe_change_freqs_nrt() {
            vm.loop[l].asic_count++;
            vm.loop[l].asic_temp_sum += h->asic_temp*6+77;
            vm.loop[l].asic_hz_sum += h->freq_wanted*15+210;
+           vm.total_mhash += (h->freq_wanted*15+210)*((h->working_engines==ALL_ENGINES_BITMASK)?ENGINES_PER_ASIC:(ENGINES_PER_ASIC-1));    
            if ((vm.force_freq == 0) &&
                (h->freq_bist_limit > h->freq_thermal_limit)) {
              vm.loop[l].overheating_asics++; 
@@ -350,7 +351,7 @@ void maybe_change_freqs_nrt() {
        }
        
        vm.dc2dc_total_power += vm.loop[l].dc2dc.dc_power_watts_16s;
-       vm.total_mhash += vm.loop[l].asic_hz_sum*ENGINES_PER_ASIC;
+       
      }
    }
    vm.dc2dc_total_power/=16;

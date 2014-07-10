@@ -858,6 +858,12 @@ void once_second_tasks_rt() {
       psyslog("Disabling HOT asic %d\n", h->address);
       disable_asic_forever_rt(i);
     }
+
+    
+    if (vm.hammer[i].working_engines==0) {
+      psyslog("Disabling non-engined asic %d\n", h->address);
+      disable_asic_forever_rt(i);
+    }
   }
 
 
@@ -1571,6 +1577,20 @@ void *i2c_state_machine_nrt(void *p) {
       }
 
 
+      
+      // every 10 seconds - loop down if too high 
+      if (counter%(48*10) == 0) {
+        psyslog("OMG to much power %d %d\n",vm.ac2dc_power,vm.max_ac2dc_power);          
+        if (vm.ac2dc_power > vm.max_ac2dc_power + 20) {
+          psyslog("OMG to much power FOR REALL!!!!%d %d\n",vm.ac2dc_power,vm.max_ac2dc_power);                      
+          for(int l = 0; l < LOOP_COUNT; l++) {
+            if (vm.loop[l].enabled_loop && loop_can_down(l)) {
+              psyslog("Down--%d\n", l);
+              loop_down(l);
+            }
+          }
+        }
+      }
 
 
       // Once every minute
@@ -1586,6 +1606,7 @@ void *i2c_state_machine_nrt(void *p) {
         //vm.solved_difficulty_total = 0;    
 
 
+        // every 2 minutes
         if (counter%(48*60*2) == 0) {
           ac2dc_scaling();
         }

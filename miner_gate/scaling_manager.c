@@ -251,13 +251,13 @@ void print_scaling() {
 
     total_asics++;
 
-    fprintf(f, GREEN RESET "|%3d:%s%3dc%s %s%3dhz%s(%2d/%2d)%s %x" GREEN RESET "%3d", 
+    fprintf(f, GREEN RESET "|%3d:%s%3dc%s %s%3dhz%s(%2d/%2d)%s %4x" GREEN RESET "%3d", 
       hi.addr,
       (hi.a->asic_temp>=vm.max_asic_temp-1)?((hi.a->asic_temp>=vm.max_asic_temp)?RED:YELLOW):GREEN,((hi.a->asic_temp*6)+77),GREEN,
        ((hi.a->freq_hw>=ASIC_FREQ_540)? (MAGENTA) : ((hi.a->freq_hw<=ASIC_FREQ_510)?(CYAN):(YELLOW))), hi.a->freq_hw*15+210,GREEN,
        hi.a->freq_thermal_limit-hi.a->freq_hw,
        hi.a->freq_bist_limit-hi.a->freq_hw, 
-       (vm.hammer[hi.addr].working_engines!=0x7FFF)?GREEN_BOLD:GREEN, vm.hammer[hi.addr].working_engines,
+       (vm.hammer[hi.addr].working_engines!=0x7FFF)?YELLOW_BOLD:GREEN, vm.hammer[hi.addr].working_engines,
         vm.hammer[hi.addr].solved_jobs);
   }
   // print last loop
