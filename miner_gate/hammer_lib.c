@@ -65,6 +65,15 @@ void hammer_iter_init(hammer_iter *e) {
 static int pll_set_addr = 50;
 
 
+int count_ones(uint32_t i)
+{
+     i = i - ((i >> 1) & 0x55555555);
+     i = (i & 0x33333333) + ((i >> 2) & 0x33333333);
+     return (((i + (i >> 4)) & 0x0F0F0F0F) * 0x01010101) >> 24;
+}
+
+
+
 int hammer_iter_next_present(hammer_iter *e) {
   int found = 0;
   
@@ -408,8 +417,8 @@ int allocate_addresses_to_devices_on_loop(int l, int override_vm) {
              vm.loop[l].asic_count--;
              vm.hammer[addr].working_engines = ALL_ENGINES_BITMASK;  
              vm.hammer[addr].passed_last_bist_engines = ALL_ENGINES_BITMASK;
-             vm.hammer[addr].freq_thermal_limit = MAX_ASIC_FREQ - 1;
-             vm.hammer[addr].freq_bist_limit = MAX_ASIC_FREQ - 1;
+             vm.hammer[addr].freq_thermal_limit = (ASIC_FREQ)(MAX_ASIC_FREQ - 1);
+             vm.hammer[addr].freq_bist_limit = (ASIC_FREQ)(MAX_ASIC_FREQ - 1);
              vm.hammer[addr].freq_wanted = MINIMAL_ASIC_FREQ;
            }
          } else {
@@ -483,18 +492,18 @@ int get_print_win(int winner_device) {
   // int winner_device = winner_reg >> 16;
   // enable_reg_debug = 1;
   uint32_t winner_nonce; // = read_reg_device(winner_device, ADDR_WINNER_NONCE);
-  uint32_t winner_id;    // = read_reg_device(winner_device, ADDR_WINNER_JOBID);
+  uint32_t winner_job_id;    // = read_reg_device(winner_device, ADDR_WINNER_JOBID);
   int engine_id;
   uint32_t next_win_reg = 0; 
   write_reg_device(winner_device, ADDR_INTR_CLEAR, BIT_INTR_WIN);  
   push_hammer_read(winner_device, ADDR_WINNER_NONCE, &winner_nonce);
-  push_hammer_read(winner_device, ADDR_WINNER_JOBID_WINNER_ENGINE, &winner_id);
+  push_hammer_read(winner_device, ADDR_WINNER_JOBID_WINNER_ENGINE, &winner_job_id);
   push_hammer_read(BROADCAST_ADDR, ADDR_BR_WIN, &next_win_reg);
   squid_wait_hammer_reads();
   // Winner ID holds ID and Engine info
-  engine_id = winner_id >> 8;
-  winner_id = winner_id & 0xFF;
-  RT_JOB *work_in_hw = peak_rt_queue(winner_id);
+  engine_id = winner_job_id >> 8;
+  winner_job_id = winner_job_id & 0xFF;
+  RT_JOB *work_in_hw = peak_rt_queue(winner_job_id);
 
   if ((winner_nonce != 0) &&
       (work_in_hw->work_state == WORK_STATE_HAS_JOB) &&
@@ -534,7 +543,7 @@ int get_print_win(int winner_device) {
       winner_nonce = 0;
    } else {
       //work_in_hw->winner_nonce = winner_nonce;
-      //printf("Win %d\n", winner_id);
+      //printf("Win %d\n", winner_job_id);
    }
    //end_stopper(&tv, "Win compute");
 #endif      
@@ -551,18 +560,29 @@ int get_print_win(int winner_device) {
     // Push wins imediatly
     //push_work_rsp(work_in_hw);
     vm.concecutive_bad_wins = 0;
+    vm.hammer[winner_device].conseq_bad=0;
   } else {
-    psyslog( "!!!!!  Warning !!!!: Win orphan job 0x%x or double win, nonce1=0x%x  , nonce=0x%x!!!\n" ,
-      winner_id,  
+    psyslog( "!!!!!  Warning !!!!: Win orphan job ASIC %d or double win, nonce1=0x%x  , nonce=0x%x!!!\n" ,
+      winner_device,  
       work_in_hw->winner_nonce[1],
       winner_nonce);
+ 
     vm.concecutive_bad_wins++;
+    if (winner_device < HAMMERS_COUNT) {
+      vm.hammer[winner_device].conseq_bad++;
+      if (vm.hammer[winner_device].conseq_bad > 250) {
+        disable_asic_forever_rt(winner_device,"bad wins");
+      }
+    } else {
+      psyslog("No such ASIC %d!\n", winner_device)
+    }
+    
     if (vm.concecutive_bad_wins > 300) {
       // Hammers out of sync.
       static char x[200]; 
       sprintf(x, "concecutive_bad_wins");
       mg_event(x);
-      exit_nicely();
+      exit_nicely(3, "bad wins");
     }
   }
   return next_win_reg;
@@ -790,8 +810,8 @@ void one_minute_tasks() {
   psyslog("Last minute rate: %d (m:%d, nm:%d)\n", (vm.solved_difficulty_total*4/60), vm.mining_time, vm.not_mining_time)
   vm.solved_difficulty_total = 0;
   //if (cnt%(60*3) == 0) {
-  if (cnt%(30) == 0) {// experiment - half hour
-    // Lets forget all scaling once every day!
+  if (cnt%(30) == 0) {// 
+    // Lets forget all scaling once every X minutes
     psyslog("Forget SCALING!");
     for (int i = 0 ; i < LOOP_COUNT; i++) {
       if (vm.loop[i].enabled_loop) {
@@ -823,7 +843,7 @@ void ten_second_tasks() {
       sprintf(x, "runaways asics on loop %d!\n", l);
       mg_event(x); 
       store_voltages();
-      exit_nicely(2);
+      exit_nicely(2, "runaway");
     }
   }
 
@@ -856,13 +876,13 @@ void once_second_tasks_rt() {
         
     if (h->too_hot_temp_counter > TOO_HOT_COUNER_DISABLE_ASIC) {
       psyslog("Disabling HOT asic %d\n", h->address);
-      disable_asic_forever_rt(i);
+      disable_asic_forever_rt(i, "Too HOT");
     }
 
     
     if (vm.hammer[i].working_engines==0) {
       psyslog("Disabling non-engined asic %d\n", h->address);
-      disable_asic_forever_rt(i);
+      disable_asic_forever_rt(i, "No engines");
     }
   }
 
@@ -1023,7 +1043,7 @@ int update_vm_with_currents_and_temperatures_nrt() {
       for (int i = loop*HAMMERS_PER_LOOP; i < loop*HAMMERS_PER_LOOP + HAMMERS_PER_LOOP ; i++) {
         if (vm.hammer[i].asic_present) {
           psyslog(RED "Disabling bad DC asic %d\n" RESET, i);
-          disable_asic_forever_rt(i);
+          disable_asic_forever_rt(i, "No DC2DC");
         }
       }
       vm.good_loops = vm.good_loops & ~(1<<loop);
@@ -1035,7 +1055,7 @@ int update_vm_with_currents_and_temperatures_nrt() {
       if (vm.overcurrent_loops > 3) {
         psyslog("TOO MANY OC LOOPS, EXITING\n");        
         store_voltages();
-        exit_nicely(5);
+        exit_nicely(5,"OC loops");
       }      
 #endif 
       end_stopper(&tv,"Fix loops");
@@ -1499,7 +1519,7 @@ void *i2c_state_machine_nrt(void *p) {
           vm.not_really_mining_seconds++;
           if (vm.not_really_mining_seconds == 60) {            
             store_voltages();
-            exit_nicely(1);
+            exit_nicely(1,"not mining");
           }
         } else {
           vm.not_really_mining_seconds = 0;
@@ -1556,7 +1576,7 @@ void *i2c_state_machine_nrt(void *p) {
           static char x[200]; 
           sprintf(x, "Thermal shut down!");
           mg_event(x);
-          exit_nicely(120);
+          exit_nicely(120,"thermal");
           // Never returns...
         }
         
@@ -1580,7 +1600,7 @@ void *i2c_state_machine_nrt(void *p) {
       
       // every 10 seconds - loop down if too high 
       if (counter%(48*10) == 0) {
-        psyslog("OMG to much power %d %d\n",vm.ac2dc_power,vm.max_ac2dc_power);          
+        //psyslog("OMG to much power %d %d\n",vm.ac2dc_power,vm.max_ac2dc_power);          
         if (vm.ac2dc_power > vm.max_ac2dc_power + 20) {
           psyslog("OMG to much power FOR REALL!!!!%d %d\n",vm.ac2dc_power,vm.max_ac2dc_power);                      
           for(int l = 0; l < LOOP_COUNT; l++) {

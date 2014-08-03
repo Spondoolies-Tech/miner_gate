@@ -91,7 +91,7 @@ int kill_app = 0;
 
 extern void save_rate_temp(int back_tmp,int back_tmp2,  int front_tmp, int total_mhash);
 
-void exit_nicely(int seconds_sleep_before_exit) {
+void exit_nicely(int seconds_sleep_before_exit, const char* why) {
   int err;
   kill_app = 1;
   // Let other threads finish. 
@@ -105,7 +105,7 @@ void exit_nicely(int seconds_sleep_before_exit) {
   mg_status("OFF");
   set_fan_level(0);
   save_rate_temp(0,0,0,0);
-  psyslog("Here comes unexpected death!\n");
+  psyslog("Here comes unexpected death: %s\n", why);
   usleep(seconds_sleep_before_exit*1000*1000);
   exit(0);  
 }
@@ -271,7 +271,7 @@ int read_work_mode(int input_voltage) {
 
 
 /*
-int read_work_mode(int input_voltage) {
+int read_disabled_asics(int input_voltage) {
 	FILE* file = fopen ("/etc/mg_custom_mode", "r");
   vm.max_ac2dc_power = AC2DC_POWER_LIMIT;
 	int i = 0;
@@ -323,7 +323,7 @@ static void sighandler(int sig)
   /* Restore signal handlers so we can still quit if kill_work fails */  
   sigaction(SIGTERM, &termhandler, NULL);
   sigaction(SIGINT, &inthandler, NULL);
-  exit_nicely(0);
+  exit_nicely(0,"Signal");
 }
 
 
@@ -829,7 +829,7 @@ int main(int argc, char *argv[]) {
  
    while (addr = BROADCAST_READ_ADDR(read_reg_broadcast(ADDR_BR_CONDUCTOR_BUSY))) {
       psyslog(RED "CONDUCTOR BUZY IN %x (%X)\n" RESET, addr,read_reg_broadcast(ADDR_VERSION));
-      disable_asic_forever_rt(addr);
+      disable_asic_forever_rt(addr, "Cond buzy");
    }
     
   // Give addresses to devices.

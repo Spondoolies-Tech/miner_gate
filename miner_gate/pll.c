@@ -81,7 +81,7 @@ void enable_engines_asic(int addr, int engines_mask) {
 void set_pll(int addr, ASIC_FREQ freq) {
   if (freq >= MAX_ASIC_FREQ-2) {
     // Runaway
-    disable_asic_forever_rt(addr);
+    disable_asic_forever_rt(addr, "pll too high");
     return;
   }
   
@@ -89,7 +89,7 @@ void set_pll(int addr, ASIC_FREQ freq) {
     freq = 
     vm.hammer[addr].freq_hw = 
     vm.hammer[addr].freq_thermal_limit = 
-    vm.hammer[addr].freq_wanted = vm.force_freq;
+    vm.hammer[addr].freq_wanted = (ASIC_FREQ)(vm.force_freq);
   }
   //passert(vm.engines_disabled == 1);
   write_reg_device(addr, ADDR_DLL_OFFSET_CFG_LOW, 0xC3C1C200);
@@ -115,9 +115,10 @@ void set_pll(int addr, ASIC_FREQ freq) {
   vm.hammer[addr].freq_hw = freq;
 }
 
-void disable_asic_forever_rt(int addr) {
+void disable_asic_forever_rt(int addr, const char* why) {
   vm.hammer[addr].working_engines = 0;
   vm.hammer[addr].asic_present = 0;
+  vm.hammer[addr].why_disabled = why;
   disable_engines_asic(addr);
   psyslog("Disabing ASIC forever %x from loop %d\n", addr, addr/HAMMERS_PER_LOOP);
   write_reg_device(addr, ADDR_CONTROL_SET1, BIT_CTRL_DISABLE_TX);
@@ -135,7 +136,7 @@ int enable_good_engines_all_asics_ok() {
         psyslog(RED "PLL %x stuck, killing ASIC\n" RESET, reg);
         //return 0;
         int addr = BROADCAST_READ_ADDR(reg);
-        disable_asic_forever_rt(addr);
+        disable_asic_forever_rt(addr, "pll stuck on enable");
         killed_pll++;
       }
       usleep(10);

@@ -74,7 +74,7 @@ void pause_all_mining_engines() {
   while(some_asics_busy != 0) {
     int addr = BROADCAST_READ_ADDR(some_asics_busy);
     psyslog(RED "some_asics_busy %x\n" RESET, some_asics_busy);
-    disable_asic_forever_rt(addr);
+    disable_asic_forever_rt(addr, "lalal");
     some_asics_busy = read_reg_broadcast(ADDR_BR_CONDUCTOR_BUSY);
   }
   // stop all ASICs
@@ -159,15 +159,6 @@ int enable_good_loops_ok() {
 
 
 
-
-int count_ones(int failed_engines) {
-  int c;
-  for (c = 0; failed_engines; failed_engines >>= 1)
-  {
-    c += failed_engines & 1;
-  }
-  return c;
-}
 
 
 

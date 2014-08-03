@@ -238,6 +238,7 @@ typedef struct {
   // asic present and used
   // If loop not enabled set to false
   uint8_t asic_present;
+  const char*   why_disabled;
   uint8_t initial_bist_done;
   // address - loop*8 + offset
   uint8_t address;
@@ -252,7 +253,8 @@ typedef struct {
   ASIC_FREQ freq_thermal_limit; 
   ASIC_FREQ freq_bist_limit;   
   int pll_waiting_reply;
-    
+
+  int conseq_bad;
   int agressivly_scale_up;
   int last_freq_change_time; // time() when we increased ASIC frequency
   int last_down_freq_change_time;
@@ -317,7 +319,7 @@ typedef struct {
   uint32_t winner_device;    
   uint32_t winner_nonce;
   uint32_t winner_engine;  
-  uint32_t winner_id;
+  uint32_t winner_job_id;
   uint32_t mrkle_root;
   uint32_t timestamp;
   uint32_t difficulty;

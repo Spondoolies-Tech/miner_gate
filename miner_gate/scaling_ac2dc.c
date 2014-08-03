@@ -116,7 +116,7 @@ void loop_up(int l) {
 
 #else
 
-void exit_nicely(int seconds_sleep_before_exit);
+void exit_nicely(int seconds_sleep_before_exit, const char* why);
 
 int asic_frequency_update_nrt_fast_initial() {    
   pause_asics_if_needed();
@@ -141,7 +141,7 @@ int asic_frequency_update_nrt_fast_initial() {
           
           if (h->freq_wanted > MAX_ASIC_FREQ-2) {
             psyslog("Disabling too fast runaway asic %d\n", h->address);
-            disable_asic_forever_rt(h->address);
+            disable_asic_forever_rt(h->address, "freq too high");
             int all_bad = 1;
             int loop = h->address / HAMMERS_PER_LOOP;
             for (int i = loop*HAMMERS_PER_LOOP; i < (loop+1)*HAMMERS_PER_LOOP;i++) {
@@ -155,7 +155,7 @@ int asic_frequency_update_nrt_fast_initial() {
               sprintf(x, "ALL ASICS ON LOOP %d ARE BAD", loop);
               mg_event(x);              
               store_voltages();
-              exit_nicely(1);
+              exit_nicely(1,"all bad");
             }
             continue;
           }
@@ -167,6 +167,9 @@ int asic_frequency_update_nrt_fast_initial() {
           // FAILED BIST at FREQ 225
           //printf("X:%d[%d] (%x)", h->address, h->freq_wanted*15+210, passed);
           h->working_engines = h->working_engines&passed;
+          if (count_ones(h->working_engines) < 8) {
+            h->working_engines = 0;
+          }
           one_ok = 1;
           h->freq_wanted = (ASIC_FREQ)(h->freq_wanted+1);
           h->freq_thermal_limit = h->freq_wanted;

@@ -52,7 +52,7 @@ typedef struct {
 } __attribute__((__packed__)) cpi_cmd;
 
 #ifdef MINERGATE
-void exit_nicely(int seconds_sleep_before_exit);
+void exit_nicely(int seconds_sleep_before_exit, const char* why);
 #endif
 
 int parse_squid_status(int v) {
@@ -375,7 +375,7 @@ uint32_t _read_reg_actual(uint32_t address, uint32_t offset) {
 	  //good_loops_fast_test();
 	  vm.serial_errors++;
 	  if (vm.serial_errors > 10000) {
-		exit_nicely(0);
+		exit_nicely(0,"seerrors");
 	  }
 #endif
 #ifdef DC2DC_CHECK_ON_ERROR
@@ -404,7 +404,7 @@ uint32_t _read_reg_actual(uint32_t address, uint32_t offset) {
 	   //good_loops_fast_test();	   
 	   vm.serial_errors++;
 	   if (vm.serial_errors > 10000) {
-		  exit_nicely(0);
+		  exit_nicely(0,"smuglarin");
 	   }
 #endif
       //passert(0, "29578");

@@ -24,7 +24,7 @@
 
 #define SIZE 100
 #ifdef MINERGATE
-void exit_nicely(int seconds_sleep_before_exit);
+void exit_nicely(int seconds_sleep_before_exit, const char* why);
 #endif
 
 void print_stack() {
@@ -50,7 +50,7 @@ void _pabort(const char *s) {
 	 }
   print_stack();
 #ifdef MINERGATE  
-  exit_nicely(0);
+  exit_nicely(0, "apAbort");
 #else
   exit(0);
 #endif
