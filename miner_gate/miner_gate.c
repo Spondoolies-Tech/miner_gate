@@ -756,7 +756,7 @@ int main(int argc, char *argv[]) {
   psyslog("ac2dc_init\n");
   ac2dc_init(&input_voltage);
   psyslog("Read work mode\n");
-  FILE* file = fopen ("/etc/voltage", "w");
+  FILE* file = fopen ("/tmp/voltage", "w");
   if (file > 0) {
     fprintf (file, "%d", input_voltage);	  
     fclose(file);

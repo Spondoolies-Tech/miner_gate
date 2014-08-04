@@ -439,6 +439,9 @@ void asic_frequency_update_nrt(int verbal) {
             printf("Cant down ASIC %d: %x:%x",h->address,h->freq_hw,h->freq_wanted);
             if (h->freq_wanted == h->freq_hw == h->freq_bist_limit == MINIMAL_ASIC_FREQ) {
               h->working_engines &= passed;
+              if (count_ones(h->working_engines) < 8) {
+                 h->working_engines = 0;
+              }
               h->freq_bist_limit = (ASIC_FREQ)(MAX_ASIC_FREQ-5);
               h->freq_thermal_limit= (ASIC_FREQ)(MAX_ASIC_FREQ-5);
               h->freq_wanted = (ASIC_FREQ)(MINIMAL_ASIC_FREQ);
